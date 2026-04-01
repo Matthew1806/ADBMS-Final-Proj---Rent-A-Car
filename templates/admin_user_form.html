@@ -1,0 +1,84 @@
+{% extends 'admin_layout.html' %}
+
+{% block title %}{{ title }} - Rent A Car{% endblock %}
+
+{% block admin_content %}
+<article class="admin-card admin-user-form-card">
+    <div class="admin-toolbar admin-user-form-toolbar">
+        <div>
+            <h2>{{ title }}</h2>
+            <p class="admin-user-form-subtitle">Manage customer account details and role access using secure admin controls.</p>
+        </div>
+        <a href="{{ url_for('admin_users') }}" class="admin-secondary-btn"><i class="fas fa-arrow-left"></i> Back to Users</a>
+    </div>
+
+    <form method="POST" class="admin-user-form-grid">
+        {{ form.hidden_tag() }}
+
+        <section class="admin-user-form-section">
+            <h3><i class="fas fa-id-badge"></i> Account Details</h3>
+            <div class="admin-user-form-fields">
+                <div class="admin-userform-field">
+                    {{ form.name.label }}
+                    {{ form.name(class="admin-userform-input", placeholder="Enter full name") }}
+                    {% if form.name.errors %}
+                        <div class="admin-userform-error">{{ form.name.errors[0] }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="admin-userform-field">
+                    {{ form.email.label }}
+                    {{ form.email(class="admin-userform-input", placeholder="Enter email address") }}
+                    {% if form.email.errors %}
+                        <div class="admin-userform-error">{{ form.email.errors[0] }}</div>
+                    {% endif %}
+                </div>
+
+                {% if not is_edit %}
+                <div class="admin-userform-field">
+                    {{ form.password.label }}
+                    {{ form.password(class="admin-userform-input", placeholder="Enter password (min 6 characters)") }}
+                    {% if form.password.errors %}
+                        <div class="admin-userform-error">{{ form.password.errors[0] }}</div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </section>
+
+        <section class="admin-user-form-section">
+            <h3><i class="fas fa-shield-halved"></i> Access Role</h3>
+            <div class="admin-userform-field">
+                <label>{{ form.is_admin.label.text }}</label>
+                <div class="admin-userform-radio-group">
+                    {% for subfield in form.is_admin %}
+                        <label class="admin-userform-radio-card {% if subfield._value() == 'True' %}is-admin-role{% else %}is-customer-role{% endif %}">
+                            {{ subfield(class="admin-userform-radio-input") }}
+                            <span class="admin-userform-radio-text-wrap">
+                                <span class="admin-userform-radio-title">{{ subfield.label.text }}</span>
+                                {% if subfield._value() == 'True' %}
+                                    <span class="admin-userform-radio-desc">Full access to vehicles, bookings, users, and reports.</span>
+                                {% else %}
+                                    <span class="admin-userform-radio-desc">Standard customer account with booking-only access.</span>
+                                {% endif %}
+                            </span>
+                        </label>
+                    {% endfor %}
+                </div>
+                <p class="admin-userform-note">
+                    <i class="fas fa-circle-info"></i>
+                    Apply least-privilege access: grant admin rights only to trusted staff who need operational control.
+                </p>
+                {% if form.is_admin.errors %}
+                    <div class="admin-userform-error">{{ form.is_admin.errors[0] }}</div>
+                {% endif %}
+            </div>
+        </section>
+
+        <div class="admin-userform-buttons">
+            {{ form.submit(class="admin-primary-btn admin-userform-submit-btn") }}
+            <a href="{{ url_for('admin_users') }}" class="admin-secondary-btn admin-userform-back-btn">Cancel</a>
+        </div>
+    </form>
+</article>
+{% endblock %}

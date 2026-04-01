@@ -1,0 +1,28 @@
+{
+  "payment_methods": [
+    {
+      "id": 1,
+      "method_name": "Credit Card"
+    },
+    {
+      "id": 2,
+      "method_name": "Debit Card"
+    },
+    {
+      "id": 3,
+      "method_name": "Online Banking"
+    },
+    {
+      "id": 4,
+      "method_name": "Cash"
+    },
+    {
+      "id": 5,
+      "method_name": "E-Wallet"
+    },
+    {
+      "id": 6,
+      "method_name": "Bank Transfer"
+    }
+  ]
+}

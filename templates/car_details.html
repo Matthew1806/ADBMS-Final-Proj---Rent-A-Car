@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ car.name }} - Car Details{% endblock %}
+
+{% block content %}
+<section class="car-details-section">
+    {% set display_price = '₱' ~ (car.price|string|replace('₱', '')|replace('PHP', '')|replace('Php', '')|replace('php', '')|trim) %}
+
+    <div class="car-details-header">
+        <div class="header-content">
+            <h1 class="car-title">{{ car.name }}</h1>
+            <div class="car-pricing">
+                <span class="price-label">Daily Rental Price</span>
+                <span class="price-value">{{ display_price }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="car-details-container">
+        <div class="car-image-gallery">
+            <!-- Main Image -->
+            <div class="image-wrapper">
+                {% if car.image %}
+                    <img src="{{ url_for('static', filename=car.image) }}" alt="{{ car.name }}" class="car-detail-image">
+                {% else %}
+                    <img src="{{ url_for('static', filename='images/cars/city.jpg') }}" alt="Default Car" class="car-detail-image">
+                {% endif %}
+            </div>
+            
+            <div class="details-action-buttons">
+                <a href="{{ url_for('book') }}" class="details-proceedrent-button">
+                    <i class="fas fa-key"></i> Proceed to Rent
+                </a>
+                <a href="{{ url_for('cars_page') }}" class="details-backtocars-button">
+                    <i class="fas fa-arrow-left"></i> Back to Cars
+                </a>
+            </div>
+        </div>
+
+        <div class="car-info">
+            <!-- Description Card -->
+            <div class="info-card description-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-file-alt"></i> Description</h3>
+                </div>
+                <p class="description-text">{{ car.specs }}</p>
+            </div>
+
+            <!-- Specifications Card -->
+            <div class="info-card specs-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-cog"></i> Specifications</h3>
+                </div>
+                <div class="specs-grid">
+                    <div class="spec-item">
+                        <span class="spec-label">Transmission</span>
+                        <span class="spec-value">{{ car.transmission }}</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Fuel Type</span>
+                        <span class="spec-value">{{ car.fuel }}</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Capacity</span>
+                        <span class="spec-value">{{ car.capacity }}</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Engine</span>
+                        <span class="spec-value">{{ car.engine }}</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Mileage</span>
+                        <span class="spec-value">{{ car.mileage }}</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Color</span>
+                        <span class="spec-value">{{ car.color }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rental Requirements Card -->
+            <div class="info-card requirements-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-clipboard-list"></i> Rental Requirements</h3>
+                </div>
+                <ul class="requirements-list">
+                    <li><i class="fas fa-check-circle"></i> Valid Driver's License</li>
+                    <li><i class="fas fa-check-circle"></i> Government-issued ID</li>
+                    <li><i class="fas fa-check-circle"></i> Minimum age: 21 years</li>
+                    <li><i class="fas fa-check-circle"></i> Credit card for security deposit</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

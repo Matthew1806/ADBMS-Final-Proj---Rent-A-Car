@@ -1,0 +1,188 @@
+/* ========================================
+   ADMIN CAR FORM
+   ======================================== */
+
+.admin-car-form-card {
+    border: 1px solid #d8e3f3;
+    padding: 20px;
+}
+
+.admin-car-form-toolbar {
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.admin-car-form-toolbar h2 {
+    margin-bottom: 6px;
+}
+
+.admin-car-form-subtitle {
+    margin: 0;
+    color: #5a6f8d;
+    font-size: 0.9rem;
+}
+
+.admin-car-form-grid {
+    display: grid;
+    gap: 14px;
+}
+
+.admin-car-form-section {
+    border: 1px solid #e0e9f6;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    padding: 16px;
+}
+
+.admin-car-form-section h3 {
+    margin: 0 0 12px;
+    font-size: 1rem;
+    color: #203355;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.admin-car-form-fields {
+    display: grid;
+    gap: 12px;
+}
+
+.admin-car-form-fields.two-col {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-carform-field {
+    display: grid;
+    gap: 6px;
+}
+
+.admin-carform-field-wide {
+    grid-column: 1 / -1;
+}
+
+.admin-carform-field label {
+    font-size: 0.84rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: #294064;
+}
+
+.admin-carform-input {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid #cad9ef;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #203355;
+    font-size: 0.94rem;
+    padding: 11px 12px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.admin-carform-input::placeholder {
+    color: #8ea2bf;
+}
+
+.admin-carform-input:hover {
+    border-color: #b8cbea;
+}
+
+.admin-carform-input:focus {
+    outline: none;
+    border-color: #2a548d;
+    box-shadow: 0 0 0 3px rgba(42, 84, 141, 0.13);
+    background: #fbfdff;
+}
+
+select.admin-carform-input {
+    cursor: pointer;
+    appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, #355c92 50%), linear-gradient(135deg, #355c92 50%, transparent 50%);
+    background-position: calc(100% - 18px) calc(50% - 2px), calc(100% - 12px) calc(50% - 2px);
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+    padding-right: 34px;
+}
+
+input[type="file"].admin-carform-input {
+    padding: 8px;
+}
+
+input[type="file"].admin-carform-input::file-selector-button {
+    border: 0;
+    border-radius: 8px;
+    background: #eaf1fb;
+    color: #22406b;
+    font-weight: 700;
+    font-size: 0.8rem;
+    padding: 8px 12px;
+    margin-right: 10px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+input[type="file"].admin-carform-input::file-selector-button:hover {
+    background: #dfeaf9;
+}
+
+.admin-car-form-help {
+    color: #607894;
+    font-size: 0.8rem;
+}
+
+.admin-carform-error {
+    color: #b53634;
+    background: #fdeaea;
+    border: 1px solid #f5cccc;
+    border-radius: 8px;
+    padding: 7px 9px;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.admin-car-form-actions {
+    border-top: 1px solid #dfe8f5;
+    padding-top: 14px;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+}
+
+.admin-carform-submit-btn,
+.admin-carform-back-btn {
+    min-height: 38px;
+    padding: 8px 14px;
+}
+
+@media (max-width: 940px) {
+    .admin-car-form-fields.two-col {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-carform-field-wide {
+        grid-column: auto;
+    }
+}
+
+@media (max-width: 640px) {
+    .admin-car-form-card {
+        padding: 12px;
+    }
+
+    .admin-car-form-section {
+        padding: 12px;
+    }
+
+    .admin-car-form-actions {
+        justify-content: stretch;
+    }
+
+    .admin-carform-submit-btn,
+    .admin-carform-back-btn {
+        flex: 1;
+        justify-content: center;
+    }
+}

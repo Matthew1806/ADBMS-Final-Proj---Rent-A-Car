@@ -1,0 +1,120 @@
+{% extends 'admin_layout.html' %}
+
+{% block title %}{{ title }} - Rent A Car{% endblock %}
+
+{% block admin_content %}
+<article class="admin-card admin-car-form-card">
+    <div class="admin-toolbar admin-car-form-toolbar">
+        <div>
+            <h2>{{ title }}</h2>
+            <p class="admin-car-form-subtitle">Create a polished vehicle listing with clear specs, pricing, and image details.</p>
+        </div>
+        <a href="{{ url_for('admin_cars') }}" class="admin-secondary-btn"><i class="fas fa-arrow-left"></i> Back to Vehicles</a>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data" class="admin-car-form-grid">
+        {{ form.hidden_tag() }}
+
+        <section class="admin-car-form-section">
+            <h3><i class="fas fa-car-side"></i> Basic Information</h3>
+            <div class="admin-car-form-fields two-col">
+                <div class="admin-carform-field">
+                    {{ form.name.label }}
+                    {{ form.name(class="admin-carform-input", placeholder="e.g., Toyota Vios") }}
+                    {% if form.name.errors %}
+                        <div class="admin-carform-error">{{ form.name.errors[0] }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="admin-carform-field">
+                    {{ form.price.label }}
+                    {{ form.price(class="admin-carform-input", placeholder="e.g., 2500 / day") }}
+                    {% if form.price.errors %}
+                        <div class="admin-carform-error">{{ form.price.errors[0] }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="admin-carform-field admin-carform-field-wide">
+                    {{ form.specs.label }}
+                    {{ form.specs(class="admin-carform-input", placeholder="Short description for customers") }}
+                    {% if form.specs.errors %}
+                        <div class="admin-carform-error">{{ form.specs.errors[0] }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="admin-carform-field">
+                    {{ form.color.label }}
+                    {{ form.color(class="admin-carform-input", placeholder="e.g., White, Black, Silver") }}
+                    {% if form.color.errors %}
+                        <div class="admin-carform-error">{{ form.color.errors[0] }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        <section class="admin-car-form-section">
+            <h3><i class="fas fa-sliders"></i> Vehicle Specifications</h3>
+            <div class="admin-car-form-fields two-col">
+                <div class="admin-carform-field">
+                    {{ form.transmission.label }}
+                    {{ form.transmission(class="admin-carform-input") }}
+                    {% if form.transmission.errors %}
+                        <div class="admin-carform-error">{{ form.transmission.errors[0] }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="admin-carform-field">
+                    {{ form.fuel.label }}
+                    {{ form.fuel(class="admin-carform-input") }}
+                    {% if form.fuel.errors %}
+                        <div class="admin-carform-error">{{ form.fuel.errors[0] }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="admin-carform-field">
+                    {{ form.capacity.label }}
+                    {{ form.capacity(class="admin-carform-input", placeholder="e.g., 5 passengers") }}
+                    {% if form.capacity.errors %}
+                        <div class="admin-carform-error">{{ form.capacity.errors[0] }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="admin-carform-field">
+                    {{ form.engine.label }}
+                    {{ form.engine(class="admin-carform-input", placeholder="e.g., 1.5L 4-Cylinder") }}
+                    {% if form.engine.errors %}
+                        <div class="admin-carform-error">{{ form.engine.errors[0] }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="admin-carform-field">
+                    {{ form.mileage.label }}
+                    {{ form.mileage(class="admin-carform-input", placeholder="e.g., 25 km/L") }}
+                    {% if form.mileage.errors %}
+                        <div class="admin-carform-error">{{ form.mileage.errors[0] }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        <section class="admin-car-form-section">
+            <h3><i class="fas fa-image"></i> Vehicle Image</h3>
+            <div class="admin-car-form-fields">
+                <div class="admin-carform-field">
+                    {{ form.image.label }}
+                    {{ form.image(class="admin-carform-input") }}
+                    <small class="admin-car-form-help">Upload JPG, PNG, or GIF. Use clear front or 3/4 angle photos for better conversions.</small>
+                    {% if form.image.errors %}
+                        <div class="admin-carform-error">{{ form.image.errors[0] }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        <div class="admin-car-form-actions">
+            {{ form.submit(class="admin-primary-btn admin-carform-submit-btn") }}
+            <a href="{{ url_for('admin_cars') }}" class="admin-secondary-btn admin-carform-back-btn">Cancel</a>
+        </div>
+    </form>
+</article>
+{% endblock %}

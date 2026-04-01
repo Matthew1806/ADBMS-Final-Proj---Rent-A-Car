@@ -1,0 +1,274 @@
+﻿{% extends 'admin_layout.html' %}
+
+{% block title %}Reports - Rent A Car{% endblock %}
+{% block admin_page_title %}Reports{% endblock %}
+{% block admin_page_subtitle %}Live operational analytics for bookings, fleet usage, customer activity, and payment trends.{% endblock %}
+
+{% block admin_content %}
+<section class="admin-dashboard-grid admin-reports-grid">
+    <div class="admin-metric-grid">
+        <article class="admin-card admin-metric-card">
+            <p>Total Revenue</p>
+            <h3>{{ total_revenue }}</h3>
+            <span class="metric-note">All recorded payments</span>
+        </article>
+        <article class="admin-card admin-metric-card">
+            <p>Total Bookings</p>
+            <h3>{{ total_bookings }}</h3>
+            <span class="metric-note">Across all statuses</span>
+        </article>
+        <article class="admin-card admin-metric-card">
+            <p>Total Customers</p>
+            <h3>{{ total_customers }}</h3>
+            <span class="metric-note">Registered non-admin users</span>
+        </article>
+        <article class="admin-card admin-metric-card">
+            <p>Paid Booking Rate</p>
+            <h3>{{ paid_rate }}%</h3>
+            <span class="metric-note">Bookings marked as paid</span>
+        </article>
+    </div>
+
+    <div class="admin-reports-chart-grid">
+        <article class="admin-card">
+            <div class="admin-toolbar">
+                <h2>6-Month Trend</h2>
+            </div>
+            <canvas id="reportsTrendChart" class="admin-report-canvas" aria-label="Monthly bookings and revenue trend"></canvas>
+        </article>
+
+        <article class="admin-card">
+            <div class="admin-toolbar">
+                <h2>Booking Status Split</h2>
+            </div>
+            <canvas id="reportsStatusChart" class="admin-report-canvas" aria-label="Booking status distribution"></canvas>
+        </article>
+    </div>
+
+    <div class="admin-reports-chart-grid admin-reports-secondary-grid">
+        <article class="admin-card">
+            <div class="admin-toolbar">
+                <h2>Fleet Availability</h2>
+            </div>
+            <canvas id="reportsFleetChart" class="admin-report-canvas" aria-label="Fleet availability distribution"></canvas>
+        </article>
+
+        <article class="admin-card">
+            <div class="admin-toolbar">
+                <h2>Top Payment Methods</h2>
+            </div>
+            {% if payment_method_data %}
+            <div class="admin-table-wrap">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Method</th>
+                            <th>Usage Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for method in payment_method_data %}
+                        <tr>
+                            <td>{{ method.label }}</td>
+                            <td>{{ method.count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="admin-empty">No payment method data available yet.</p>
+            {% endif %}
+        </article>
+    </div>
+
+    <div class="admin-reports-table-grid">
+        <article class="admin-card">
+            <div class="admin-toolbar">
+                <h2>Booking Status Summary</h2>
+            </div>
+            <div class="admin-table-wrap">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in booking_status_data %}
+                        <tr>
+                            <td>
+                                <span class="admin-status-badge admin-status-{{ item.label.lower() }}">{{ item.label }}</span>
+                            </td>
+                            <td>{{ item.count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+        <article class="admin-card">
+            <div class="admin-toolbar">
+                <h2>Top Vehicles by Bookings</h2>
+            </div>
+            {% if top_vehicles %}
+            <div class="admin-table-wrap">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Vehicle</th>
+                            <th>Bookings</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for name, count in top_vehicles %}
+                        <tr>
+                            <td>{{ name }}</td>
+                            <td>{{ count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="admin-empty">No booking activity yet.</p>
+            {% endif %}
+        </article>
+    </div>
+
+    <article class="admin-card">
+        <div class="admin-toolbar">
+            <h2>Top Customers by Booking Count</h2>
+        </div>
+        {% if top_customers %}
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Customer</th>
+                        <th>Bookings</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for name, count in top_customers %}
+                    <tr>
+                        <td>{{ name }}</td>
+                        <td>{{ count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="admin-empty">No customer booking activity yet.</p>
+        {% endif %}
+    </article>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const data = {{ chart_data|tojson }};
+
+    const trendCtx = document.getElementById('reportsTrendChart');
+    const statusCtx = document.getElementById('reportsStatusChart');
+    const fleetCtx = document.getElementById('reportsFleetChart');
+
+    if (trendCtx) {
+        new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: data.month_labels,
+                datasets: [
+                    {
+                        label: 'Bookings',
+                        data: data.monthly_bookings,
+                        borderColor: '#1f4a86',
+                        backgroundColor: 'rgba(31, 74, 134, 0.12)',
+                        fill: true,
+                        tension: 0.32,
+                        pointRadius: 3
+                    },
+                    {
+                        label: 'Revenue',
+                        data: data.monthly_revenue,
+                        borderColor: '#cb4b3b',
+                        backgroundColor: 'rgba(203, 75, 59, 0.1)',
+                        fill: true,
+                        tension: 0.32,
+                        pointRadius: 3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0 }
+                    }
+                }
+            }
+        });
+    }
+
+    if (statusCtx) {
+        new Chart(statusCtx, {
+            type: 'doughnut',
+            data: {
+                labels: data.status_labels,
+                datasets: [{
+                    data: data.status_counts,
+                    backgroundColor: ['#f5c671', '#68b987', '#df7e76', '#6f9dd1', '#9aa7b7'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    }
+
+    if (fleetCtx) {
+        new Chart(fleetCtx, {
+            type: 'bar',
+            data: {
+                labels: data.fleet_labels,
+                datasets: [{
+                    label: 'Fleet Count',
+                    data: data.fleet_counts,
+                    backgroundColor: ['#3e7cc8', '#cb4b3b', '#7a8ca8'],
+                    borderRadius: 8,
+                    borderSkipped: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0 }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

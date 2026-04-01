@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<section class="admin-shell">
+    <button type="button" class="admin-sidebar-overlay" aria-label="Close admin sidebar"></button>
+
+    <aside class="admin-sidebar" aria-label="Admin navigation">
+        <div class="admin-sidebar-head">
+            <h2>Admin Panel</h2>
+            <p>Car Rental System</p>
+        </div>
+        <nav class="admin-nav-links">
+            <a href="{{ url_for('admin_dashboard') }}" class="{% if request.endpoint == 'admin_dashboard' %}active{% endif %}">
+                <i class="fas fa-gauge"></i> Dashboard
+            </a>
+            <a href="{{ url_for('admin_cars') }}" class="{% if request.endpoint in ['admin_cars', 'admin_add_car', 'admin_edit_car'] %}active{% endif %}">
+                <i class="fas fa-car-side"></i> Manage Vehicles
+            </a>
+            <a href="{{ url_for('admin_bookings') }}" class="{% if request.endpoint in ['admin_bookings', 'admin_booking_details'] %}active{% endif %}">
+                <i class="fas fa-calendar-check"></i> Manage Bookings
+            </a>
+            <a href="{{ url_for('admin_users') }}" class="{% if request.endpoint in ['admin_users', 'admin_add_user', 'admin_edit_user'] %}active{% endif %}">
+                <i class="fas fa-users"></i> Customers
+            </a>
+            <a href="{{ url_for('admin_reports') }}" class="{% if request.endpoint == 'admin_reports' %}active{% endif %}">
+                <i class="fas fa-chart-column"></i> Reports
+            </a>
+            <span class="admin-settings-disabled" aria-disabled="true">
+                <i class="fas fa-gear"></i> Settings (Soon)
+            </span>
+            <a href="{{ url_for('logout') }}" class="admin-logout-link">
+                <i class="fas fa-right-from-bracket"></i> Logout
+            </a>
+        </nav>
+    </aside>
+
+    <div class="admin-main">
+        <button type="button" class="admin-menu-toggle admin-menu-toggle-standalone" aria-label="Toggle admin menu" aria-expanded="false">
+            <i class="fas fa-bars"></i>
+        </button>
+
+        <main class="admin-main-content">
+            {% block admin_content %}{% endblock %}
+        </main>
+    </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.body.classList.add('admin-page');
+
+    const shell = document.querySelector('.admin-shell');
+    const toggleButton = document.querySelector('.admin-menu-toggle');
+    const overlay = document.querySelector('.admin-sidebar-overlay');
+
+    if (!shell || !toggleButton || !overlay) {
+        return;
+    }
+
+    function closeSidebar() {
+        shell.classList.remove('sidebar-open');
+        toggleButton.setAttribute('aria-expanded', 'false');
+    }
+
+    function openSidebar() {
+        shell.classList.add('sidebar-open');
+        toggleButton.setAttribute('aria-expanded', 'true');
+    }
+
+    toggleButton.addEventListener('click', function() {
+        if (shell.classList.contains('sidebar-open')) {
+            closeSidebar();
+        } else {
+            openSidebar();
+        }
+    });
+
+    overlay.addEventListener('click', closeSidebar);
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            closeSidebar();
+        }
+    });
+
+    window.addEventListener('resize', function() {
+        if (window.innerWidth > 980) {
+            closeSidebar();
+        }
+    });
+});
+</script>
+{% endblock %}

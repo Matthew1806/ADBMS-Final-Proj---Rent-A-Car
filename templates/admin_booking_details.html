@@ -1,0 +1,103 @@
+﻿{% extends 'admin_layout.html' %}
+
+{% block title %}Booking Details - Rent A Car{% endblock %}
+{% block admin_page_title %}Booking Details{% endblock %}
+{% block admin_page_subtitle %}Review booking information and update status with clear transition rules.{% endblock %}
+
+{% block admin_content %}
+<article class="admin-card">
+    <h2>Booking #{{ booking.id }}</h2>
+    <div class="admin-table-wrap">
+        <table class="admin-table">
+            <tbody>
+                <tr><th>Submitted At</th><td>{{ booking.submitted_at.strftime('%B %d, %Y at %H:%M') }}</td></tr>
+                <tr><th>Status</th><td><span class="admin-status-badge admin-status-{{ booking.status.lower() }}">{{ booking.status }}</span></td></tr>
+                <tr><th>Customer</th><td>{{ user.name }} ({{ user.email }})</td></tr>
+                <tr><th>Contact</th><td>{{ booking.contact }}</td></tr>
+                <tr><th>Vehicle</th><td>{{ car.name }}</td></tr>
+                <tr><th>Specs</th><td>{{ car.transmission }} | {{ car.fuel }} | {{ car.capacity }}</td></tr>
+                <tr><th>Pickup Date</th><td>{{ booking.pickup_date.strftime('%B %d, %Y') }}</td></tr>
+                <tr><th>Return Date</th><td>{{ booking.return_date.strftime('%B %d, %Y') }}</td></tr>
+                {% if booking.notes %}<tr><th>Notes</th><td>{{ booking.notes }}</td></tr>{% endif %}
+                {% if booking.payment_method %}<tr><th>Payment Method</th><td>{{ booking.payment_method }}</td></tr>{% endif %}
+                {% if booking.payment_status %}<tr><th>Payment Status</th><td>{{ booking.payment_status }}</td></tr>{% endif %}
+            </tbody>
+        </table>
+    </div>
+</article>
+
+{% if booking.id_file or booking.license_file %}
+<article class="admin-card">
+    <h3>Uploaded Documents</h3>
+    <div class="admin-action-group">
+        {% if booking.id_file %}
+        <a href="{{ url_for('uploaded_file', filename=booking.id_file) }}" target="_blank" class="admin-soft-btn">View ID</a>
+        {% endif %}
+        {% if booking.license_file %}
+        <a href="{{ url_for('uploaded_file', filename=booking.license_file) }}" target="_blank" class="admin-soft-btn">View License</a>
+        {% endif %}
+    </div>
+</article>
+{% endif %}
+
+<article class="admin-card">
+    <h3>Update Booking Status</h3>
+    {% if booking.payment_method %}
+    <p class="dashboard-note">Payment method selected: <strong>{{ booking.payment_method }}</strong>. Returning to Pending is restricted.</p>
+    {% endif %}
+    <form method="POST" action="{{ url_for('admin_update_booking_status', booking_id=booking.id) }}" id="status-form" class="admin-action-group">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <label for="status" style="font-weight:700; color:#1f3258;">New Status</label>
+        <select name="status" id="status" class="book-input" style="max-width:220px;" {% if booking.status in ['Rejected', 'Completed'] %}disabled{% endif %}>
+            <option value="Pending" {% if booking.status == 'Pending' %}selected{% endif %}>Pending</option>
+            <option value="Approved" {% if booking.status == 'Approved' %}selected{% endif %}>Approved</option>
+            <option value="Rejected" {% if booking.status == 'Rejected' %}selected{% endif %}>Rejected</option>
+            <option value="Returned" {% if booking.status == 'Returned' %}selected{% endif %}>Returned</option>
+            <option value="Completed" {% if booking.status == 'Completed' %}selected{% endif %}>Completed</option>
+        </select>
+        <button type="submit" class="admin-primary-btn" {% if booking.status in ['Rejected', 'Completed'] %}disabled{% endif %}>Update</button>
+    </form>
+</article>
+
+<script>
+const statusSelect = document.getElementById('status');
+const statusForm = document.getElementById('status-form');
+const currentStatus = '{{ booking.status }}';
+const hasPayment = {{ 'true' if booking.payment_method else 'false' }};
+
+function updateStatusOptions() {
+    if (!statusSelect) return;
+    const options = statusSelect.options;
+    for (let i = 0; i < options.length; i++) options[i].disabled = false;
+
+    if (currentStatus === 'Pending') {
+        if (hasPayment) options[0].disabled = true;
+        options[3].disabled = true;
+        options[4].disabled = true;
+    } else if (currentStatus === 'Approved') {
+        options[0].disabled = true;
+        options[2].disabled = true;
+        options[4].disabled = true;
+    } else if (currentStatus === 'Rejected') {
+        for (let i = 0; i < options.length; i++) if (options[i].value !== 'Rejected') options[i].disabled = true;
+    } else if (currentStatus === 'Returned') {
+        options[0].disabled = true;
+        options[1].disabled = true;
+        options[2].disabled = true;
+    } else if (currentStatus === 'Completed') {
+        for (let i = 0; i < options.length; i++) if (options[i].value !== 'Completed') options[i].disabled = true;
+    }
+}
+
+updateStatusOptions();
+
+if (statusForm && statusSelect) {
+    statusForm.addEventListener('submit', function(e) {
+        if (statusSelect.options[statusSelect.selectedIndex].disabled) {
+            e.preventDefault();
+            alert('This status transition is not allowed.');
+        }
+    });
+}
+</script>
+{% endblock %}

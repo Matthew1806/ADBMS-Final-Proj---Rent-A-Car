@@ -1,0 +1,280 @@
+{% extends 'base.html' %}
+
+{% block title %}Home - Rent A Car{% endblock %}
+
+{% block content %}
+<section class="hero-section">
+    <div class="hero-wrapper">
+        <div class="hero-content">
+            <div class="hero-text-content reveal-up">
+                {% if current_user.is_authenticated %}
+                    <p class="welcome-text">Welcome back, {{ current_user.name }}</p>
+                {% endif %}
+
+                <h1 class="hero-title">Rent smarter with transparent rates and premium-ready vehicles.</h1>
+                <p class="hero-description">
+                    From quick city trips to long weekend drives, find the right car in minutes.
+                    Compare, book, and drive with confidence.
+                </p>
+
+                <div class="index-hero-buttons-container">
+                    <a href="{{ url_for('cars_page') }}" class="index-hero-browse-button">Explore Fleet</a>
+                    <a href="{{ url_for('book') }}" class="index-hero-learnmore-button">Start Booking</a>
+                </div>
+
+                <ul class="index-hero-featurelist">
+                    <li><span class="index-hero-featurelist-checkmark">✓</span> Transparent daily pricing</li>
+                    <li><span class="index-hero-featurelist-checkmark">✓</span> Verified and maintained units</li>
+                    <li><span class="index-hero-featurelist-checkmark">✓</span> Clear terms, no dark patterns</li>
+                </ul>
+            </div>
+
+            <div class="hero-booking-panel reveal-up delay-12">
+                <div class="quick-actions-layer" aria-hidden="true"></div>
+                <div class="quick-actions-shell">
+                    <header class="quick-actions-header">
+                        <p class="quick-actions-kicker">Dashboard</p>
+                        <h2>Quick Actions</h2>
+                        <p>Start your booking in seconds</p>
+                    </header>
+
+                    <form action="{{ url_for('book') }}" method="get" class="hero-booking-form quick-actions-form" id="quick-actions-form" aria-label="Quick actions booking panel">
+                        <section class="quick-actions-group" aria-labelledby="qa-location-title">
+                            <div class="quick-actions-group-head">
+                                <span class="quick-actions-group-icon"><i class="fas fa-location-dot"></i></span>
+                                <h3 id="qa-location-title">Location</h3>
+                            </div>
+
+                            <div class="quick-input-field">
+                                <i class="fas fa-location-dot quick-input-icon" aria-hidden="true"></i>
+                                <select id="pickup-city" name="pickup_city" required>
+                                    <option value="" selected disabled></option>
+                                    <option value="Lipa">Lipa</option>
+                                    <option value="Batangas City">Batangas City</option>
+                                    <option value="Tanauan">Tanauan</option>
+                                </select>
+                                <label for="pickup-city">Pick-up Area</label>
+                            </div>
+                        </section>
+
+                        <section class="quick-actions-group" aria-labelledby="qa-dates-title">
+                            <div class="quick-actions-group-head">
+                                <span class="quick-actions-group-icon"><i class="fas fa-calendar-days"></i></span>
+                                <h3 id="qa-dates-title">Dates</h3>
+                            </div>
+
+                            <div class="hero-booking-row quick-actions-dates">
+                                <div class="quick-input-field quick-date-field">
+                                    <i class="fas fa-calendar-plus quick-input-icon" aria-hidden="true"></i>
+                                    <input id="pickup-date" type="date" name="pickup_date" placeholder=" " required>
+                                    <label for="pickup-date">Pick-up Date</label>
+                                </div>
+                                <div class="quick-input-field quick-date-field">
+                                    <i class="fas fa-calendar-check quick-input-icon" aria-hidden="true"></i>
+                                    <input id="return-date" type="date" name="return_date" placeholder=" " required>
+                                    <label for="return-date">Return Date</label>
+                                </div>
+                            </div>
+                        </section>
+
+                        <div class="quick-actions-primary" role="group" aria-label="Primary booking action">
+                            <button type="submit" class="quick-actions-submit">
+                                <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+                                <span>Find Cars</span>
+                            </button>
+                        </div>
+
+                        <div class="quick-actions-footer">
+                            <p class="quick-actions-trust"><i class="fas fa-circle-check" aria-hidden="true"></i> No hidden fees</p>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="features-section">
+    <div class="section-container">
+        <div class="index-section-header reveal-up">
+            <h2>Why Drivers Choose Us</h2>
+            <p>Built for speed, clarity, and confidence from first click to key handover.</p>
+        </div>
+
+        <div class="features-grid">
+            <article class="feature-card reveal-up">
+                <div class="feature-icon"><i class="fas fa-shield-heart"></i></div>
+                <h3>Safety First</h3>
+                <p>Every vehicle undergoes routine checks before release.</p>
+            </article>
+            <article class="feature-card reveal-up delay-08">
+                <div class="feature-icon"><i class="fas fa-bolt"></i></div>
+                <h3>Fast Booking Flow</h3>
+                <p>Minimal steps and clear form prompts reduce friction.</p>
+            </article>
+            <article class="feature-card reveal-up delay-16">
+                <div class="feature-icon"><i class="fas fa-wallet"></i></div>
+                <h3>Transparent Pricing</h3>
+                <p>View costs and payment status clearly without hidden add-ons.</p>
+            </article>
+            <article class="feature-card reveal-up delay-24">
+                <div class="feature-icon"><i class="fas fa-headset"></i></div>
+                <h3>Reliable Support</h3>
+                <p>Our team is available when you need booking help.</p>
+            </article>
+        </div>
+    </div>
+</section>
+
+<section class="featured-cars-section">
+    <div class="section-container">
+        <div class="index-section-header reveal-up">
+            <h2>Featured Vehicles</h2>
+            <p>Popular options from our active fleet.</p>
+        </div>
+
+        <div class="featured-cars-grid">
+            {% for car in featured_cars %}
+            <article class="featured-car-card reveal-up" data-tilt>
+                <a href="{{ url_for('car_details', car_id=car.id) }}" class="featured-car-image-wrap">
+                    {% if car.image %}
+                        <img src="{{ url_for('static', filename=car.image) }}" alt="{{ car.name }}" class="featured-car-image">
+                    {% else %}
+                        <img src="{{ url_for('static', filename='images/cars/city.jpg') }}" alt="{{ car.name }}" class="featured-car-image">
+                    {% endif %}
+                </a>
+                <div class="featured-car-body">
+                    <h3>{{ car.name }}</h3>
+                    <p class="featured-car-meta">{{ car.transmission }} · {{ car.fuel }} · {{ car.capacity }} seats</p>
+                    {% set display_price = '₱' ~ (car.price|string|replace('₱', '')|replace('PHP', '')|replace('Php', '')|replace('php', '')|trim) %}
+                    <p class="featured-car-price">{{ display_price }} <span>/ day</span></p>
+                    <a href="{{ url_for('book') }}" class="featured-car-action">Rent This Car</a>
+                </div>
+            </article>
+            {% else %}
+            <p class="empty-state">No featured vehicles yet. Please check the fleet page.</p>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<section class="categories-section">
+    <div class="section-container">
+        <div class="index-section-header reveal-up">
+            <h2>Vehicle Categories</h2>
+            <p>Choose based on your route, budget, and comfort needs.</p>
+        </div>
+        <div class="categories-grid">
+            <article class="category-tile reveal-up">
+                <h3>Economy</h3>
+                <p>Efficient rides for daily errands and city travel.</p>
+            </article>
+            <article class="category-tile reveal-up delay-08">
+                <h3>Sedan</h3>
+                <p>Balanced comfort and performance for all-around trips.</p>
+            </article>
+            <article class="category-tile reveal-up delay-16">
+                <h3>SUV</h3>
+                <p>Extra room for family travel and luggage.</p>
+            </article>
+            <article class="category-tile reveal-up delay-24">
+                <h3>Premium</h3>
+                <p>Elevated comfort for business and special occasions.</p>
+            </article>
+        </div>
+    </div>
+</section>
+
+<section class="booking-process-section">
+    <div class="section-container">
+        <div class="index-section-header reveal-up">
+            <h2>Simple 3-Step Booking</h2>
+        </div>
+        <div class="process-grid">
+            <article class="process-step reveal-up">
+                <span class="process-number">1</span>
+                <h3>Browse & Filter</h3>
+                <p>Explore cars by type, transmission, fuel, and budget.</p>
+            </article>
+            <article class="process-step reveal-up delay-08">
+                <span class="process-number">2</span>
+                <h3>Select Your Dates</h3>
+                <p>Pick your schedule and confirm availability instantly.</p>
+            </article>
+            <article class="process-step reveal-up delay-16">
+                <span class="process-number">3</span>
+                <h3>Book with Confidence</h3>
+                <p>Review the details and complete your reservation securely.</p>
+            </article>
+        </div>
+    </div>
+</section>
+
+<section class="testimonials-section">
+    <div class="section-container">
+        <div class="index-section-header reveal-up">
+            <h2>Customer Reviews</h2>
+            <p>Recent feedback from real bookings.</p>
+        </div>
+        <div class="testimonial-grid">
+            {% for review in testimonial_cards %}
+            <article class="testimonial-card reveal-up">
+                <div class="testimonial-stars" aria-label="Rating {{ review.rating }} out of 5">
+                    {% for i in range(1, 6) %}
+                        {% if i <= review.rating %}
+                            <i class="fas fa-star"></i>
+                        {% else %}
+                            <i class="far fa-star"></i>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                <p class="testimonial-comment">"{{ review.comment }}"</p>
+                <p class="testimonial-author">{{ review.author }} · {{ review.car_name }}</p>
+            </article>
+            {% else %}
+            <p class="empty-state">No reviews yet. Be the first to share your experience.</p>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<section class="cta-section">
+    <div class="section-container reveal-up">
+        <h2>Ready to Drive?</h2>
+        <p>Find your ideal vehicle and complete booking in a few straightforward steps.</p>
+        <a href="{{ url_for('cars_page') }}" class="index-cta-startjourney-button">Browse Available Cars</a>
+    </div>
+</section>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const pickupDate = document.getElementById('pickup-date');
+    const returnDate = document.getElementById('return-date');
+
+    if (!pickupDate || !returnDate) {
+        return;
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    pickupDate.min = today;
+    returnDate.min = today;
+
+    const syncReturnDate = function () {
+        if (!pickupDate.value) {
+            returnDate.min = today;
+            return;
+        }
+        returnDate.min = pickupDate.value;
+        if (returnDate.value && returnDate.value < pickupDate.value) {
+            returnDate.value = pickupDate.value;
+        }
+    };
+
+    pickupDate.addEventListener('change', syncReturnDate);
+    syncReturnDate();
+});
+</script>
+{% endblock %}

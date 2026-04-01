@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+
+{% block title %}Reviews — {{ car.name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/car_reviews.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="reviews-page-wrapper">
+    <!-- Hero Section with Car Info -->
+    <section class="reviews-hero-section">
+        <div class="reviews-hero-content">
+            <div class="hero-text">
+                <h1 class="reviews-main-title">Customer Reviews</h1>
+                <p class="reviews-car-name">{{ car.name }}</p>
+                <div class="hero-rating-display">
+                    <div class="rating-stars-large">
+                        {% for i in range(1, 6) %}
+                            <i class="fas fa-star" style="color: {% if i <= (car.average_rating|int if car.average_rating else 0) %}#c44536{% else %}#e8edf5{% endif %};"></i>
+                        {% endfor %}
+                    </div>
+                    <span class="rating-score">{{ car.average_rating or 'N/A' }}/5.0</span>
+                    <span class="rating-count">({{ car.review_count or 0 }} reviews)</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Content Area -->
+    <section class="reviews-main-container">
+        <!-- Review Stats & Write Review Section -->
+        <div class="reviews-header-section">
+            <div class="rating-stats">
+                <div class="stats-average">
+                    <div class="average-rating-large">{{ car.average_rating or 'N/A' }}</div>
+                    <div class="average-rating-stars">
+                        {% for i in range(1, 6) %}
+                            <i class="fas fa-star" style="color: {% if i <= (car.average_rating|int if car.average_rating else 0) %}#c44536{% else %}#e8edf5{% endif %};"></i>
+                        {% endfor %}
+                    </div>
+                    <div class="average-rating-count">Based on {{ car.review_count or 0 }} reviews</div>
+                </div>
+                <div class="rating-distribution">
+                    {% set max_count = [rating_distribution[5], rating_distribution[4], rating_distribution[3], rating_distribution[2], rating_distribution[1]]|max or 1 %}
+                    {% for stars in [5, 4, 3, 2, 1] %}
+                    {% set count = rating_distribution[stars] %}
+                    {% set percentage = (count / max_count * 100)|int if max_count > 0 else 0 %}
+                    <div class="distribution-row">
+                        <span class="dist-label">{{ stars }} Star</span>
+                        <div class="dist-bar-container">
+                            <div class="dist-bar" style="width: {{ percentage }}%;"></div>
+                        </div>
+                        <span class="dist-count">{{ count }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="write-review-cta">
+                <h3 class="cta-heading">Share Your Experience</h3>
+                <p class="cta-description">Have you rented this vehicle? Share your experience to help other customers.</p>
+                <a href="{{ url_for('my_bookings') }}" class="btn btn-primary btn-block">
+                    <i class="fas fa-pen"></i> Write a Review
+                </a>
+            </div>
+        </div>
+
+        <!-- Reviews Filters & Sorting -->
+        <div class="reviews-controls">
+            <div class="reviews-sort">
+                <label for="sort-reviews">Sort by:</label>
+                <select id="sort-reviews" class="sort-select">
+                    <option value="recent">Most Recent</option>
+                    <option value="highest">Highest Rating</option>
+                    <option value="lowest">Lowest Rating</option>
+                    <option value="helpful">Most Helpful</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Reviews List -->
+        <div class="reviews-layout">
+
+                {% if reviews and reviews|length > 0 %}
+                    <div class="reviews-grid">
+                        {% for review in reviews %}
+                        <article class="review-card">
+                            <!-- Review Header -->
+                            <div class="review-card-header">
+                                <div class="reviewer-info">
+                                    <div class="reviewer-avatar" style="background: linear-gradient(135deg, #c44536, #db6b4b);">
+                                        {{ (review.author[0] if review.author else 'A')|upper }}
+                                    </div>
+                                    <div class="reviewer-meta">
+                                        <h4 class="reviewer-name">{{ review.author if review.author else 'Verified Customer' }}</h4>
+                                        <p class="review-date">{{ review.created_at if review.created_at else 'Recently' }}</p>
+                                    </div>
+                                </div>
+                                <div class="review-rating">
+                                    <div class="stars-row">
+                                        {% for i in range(1, 6) %}
+                                            <i class="fas fa-star" style="color: {% if i <= review.rating %}#c44536{% else %}#e8edf5{% endif %};"></i>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Review Body -->
+                            <div class="review-card-body">
+                                <p class="review-comment">{{ review.comment or 'Great experience with this vehicle!' }}</p>
+                            </div>
+
+                            <!-- Review Footer -->
+                            <div class="review-card-footer">
+                                <div class="review-actions">
+                                    <span class="verified-badge">
+                                        <i class="fas fa-check-circle"></i> Verified Booking
+                                    </span>
+                                    <div class="helpful-actions">
+                                        <button class="helpful-btn" title="Helpful">
+                                            <i class="far fa-thumbs-up"></i> Helpful
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </article>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-reviews-state">
+                        <div class="empty-state-icon">
+                            <i class="fas fa-comments"></i>
+                        </div>
+                        <h3 class="empty-state-title">No Reviews Yet</h3>
+                        <p class="empty-state-text">Be the first to share your experience with this premium vehicle. Your feedback helps other customers make confident decisions.</p>
+                        <a href="{{ url_for('book') }}" class="btn btn-primary">
+                            <i class="fas fa-calendar-check"></i> Book & Share Your Experience
+                        </a>
+                    </div>
+                {% endif %}
+        </div>
+    </section>
+</div>
+
+{% endblock %}

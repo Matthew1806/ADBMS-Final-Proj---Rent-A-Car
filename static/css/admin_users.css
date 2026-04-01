@@ -1,0 +1,9 @@
+﻿/* ========================================
+   ADMIN USERS PAGE STYLES
+   ======================================== */
+
+/* Uses shared admin_common.css for clean customer table layout */
+
+.admin-users-inline-form {
+   display: inline;
+}

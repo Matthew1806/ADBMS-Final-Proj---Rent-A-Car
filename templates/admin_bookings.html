@@ -1,0 +1,57 @@
+﻿{% extends 'admin_layout.html' %}
+
+{% block title %}Manage Bookings - Rent A Car{% endblock %}
+{% block admin_page_title %}Manage Bookings{% endblock %}
+{% block admin_page_subtitle %}Review booking requests, update statuses, and cancel records with confirmation.{% endblock %}
+
+{% block admin_content %}
+<article class="admin-card">
+    <div class="admin-toolbar">
+        <h2>Booking Records</h2>
+        <div class="admin-action-group">
+            <a href="{{ url_for('admin_bookings') }}" class="admin-secondary-btn">All</a>
+            <a href="{{ url_for('admin_bookings', status='Pending') }}" class="admin-secondary-btn">Pending</a>
+            <a href="{{ url_for('admin_bookings', status='Approved') }}" class="admin-secondary-btn">Approved</a>
+            <a href="{{ url_for('admin_bookings', status='Rejected') }}" class="admin-secondary-btn">Rejected</a>
+            <a href="{{ url_for('admin_bookings', status='Completed') }}" class="admin-secondary-btn">Completed</a>
+        </div>
+    </div>
+
+    {% if bookings %}
+    <div class="admin-table-wrap">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Customer</th>
+                    <th>Car Rented</th>
+                    <th>Rental Date</th>
+                    <th>Return Date</th>
+                    <th>Booking Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for booking in bookings %}
+                <tr>
+                    <td>{{ booking.name }}<br><small>{{ booking.email }}</small></td>
+                    <td>{{ booking.car.name }}</td>
+                    <td>{{ booking.pickup_date.strftime('%Y-%m-%d') }}</td>
+                    <td>{{ booking.return_date.strftime('%Y-%m-%d') }}</td>
+                    <td><span class="admin-status-badge admin-status-{{ booking.status.lower() }}">{{ booking.status }}</span></td>
+                    <td>
+                        <a href="{{ url_for('admin_booking_details', booking_id=booking.id) }}" class="admin-secondary-btn">View / Update</a>
+                        <form method="POST" action="{{ url_for('admin_delete_booking', booking_id=booking.id) }}" style="display:inline;" onsubmit="return confirm('Cancel and delete this booking record?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <button type="submit" class="admin-danger-btn">Cancel</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="admin-empty">No bookings found.</p>
+    {% endif %}
+</article>
+{% endblock %}

@@ -1,0 +1,357 @@
+{% extends 'base.html' %}
+
+{% block title %}Confirmation - Rent A Car{% endblock %}
+
+{% block content %}
+{% set days = (booking.return_date - booking.pickup_date).days + 1 %}
+{% set display_price = '₱' ~ (car.price|string|replace('₱', '')|replace('PHP', '')|replace('Php', '')|replace('php', '')|trim) %}
+<section class="confirmation-section">
+    <header class="confirmation-header reveal-up">
+        <div>
+            <p class="confirmation-kicker">Booking Confirmation</p>
+            <h2>Payment Setup For Your Approved Booking</h2>
+            <p class="confirmation-subtitle">Your reservation is approved. Choose a payment method below and complete payment if using GCash or Card.</p>
+        </div>
+        <span class="confirmation-badge">
+            <i class="fas fa-check-circle"></i>
+            Approved
+        </span>
+    </header>
+
+    <div class="confirmation-layout reveal-up delay-08">
+        <div class="confirmation-card details">
+            <h3>Booking Details</h3>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span class="detail-label">Customer</span>
+                    <strong>{{ booking.name }}</strong>
+                    <small>{{ booking.email }}</small>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Contact</span>
+                    <strong>{{ booking.contact }}</strong>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Vehicle</span>
+                    <strong>{{ car.name }}</strong>
+                    <small>{{ display_price }} / day</small>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Rental Period</span>
+                    <strong>{{ booking.pickup_date.strftime('%b %d, %Y') }}</strong>
+                    <small>to {{ booking.return_date.strftime('%b %d, %Y') }}</small>
+                </div>
+            </div>
+
+            {% if booking.notes %}
+            <div class="confirmation-note">
+                <i class="fas fa-sticky-note"></i>
+                <span>{{ booking.notes }}</span>
+            </div>
+            {% endif %}
+
+            <div class="confirmation-docs">
+                {% if booking.id_file %}
+                <a href="{{ url_for('uploaded_file', filename=booking.id_file) }}" class="doc-link" target="_blank">
+                    <i class="fas fa-id-card"></i> Valid ID
+                </a>
+                {% endif %}
+                {% if booking.license_file %}
+                <a href="{{ url_for('uploaded_file', filename=booking.license_file) }}" class="doc-link" target="_blank">
+                    <i class="fas fa-address-card"></i> Driver's License
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="confirmation-card receipt">
+            <h3>Payment Summary</h3>
+            <div class="receipt-grid">
+                <div class="receipt-item">
+                    <p><strong>Rental Days</strong></p>
+                    <p>{{ days }}</p>
+                </div>
+                <div class="receipt-item">
+                    <p><strong>Rate Per Day</strong></p>
+                    <p>{{ display_price }}</p>
+                </div>
+                <div class="receipt-item receipt-item-wide">
+                    <p><strong>Total Amount Due</strong></p>
+                    <p class="total-amount">{{ total_display }}</p>
+                </div>
+                <div class="receipt-item receipt-item-wide">
+                    <p><strong>Payment Method</strong></p>
+                    <select id="payment-method-select" class="payment-method-select" title="Payment Method">
+                        <option value="">Select Payment Method</option>
+                        <option value="GCash" {% if booking.payment_method == 'GCash' %}selected{% endif %}>GCash</option>
+                        <option value="Cash" {% if booking.payment_method == 'Cash' %}selected{% endif %}>Cash</option>
+                        <option value="Card" {% if booking.payment_method == 'Card' %}selected{% endif %}>Card</option>
+                    </select>
+                    <p class="receipt-policy">Online payment is available for approved bookings. Cash is paid on pickup.</p>
+                </div>
+            </div>
+
+            <div class="confirm-actions">
+                <button id="pay-now-btn" class="confirm-pay-btn">Pay Now</button>
+                <a href="{{ url_for('my_bookings') }}" class="confirm-home-btn">Back to My Bookings</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div id="payment-modal" class="confirmation-modal">
+        <div class="confirmation-modal-content payment-modal-content">
+            <span class="confirmation-close-modal" id="close-payment-modal">&times;</span>
+            <h2>Process Payment</h2>
+            <div class="payment-summary">
+                <p><strong>Total Amount:</strong> <span class="payment-amount">{{ total_display }}</span></p>
+                <p><strong>Payment Method:</strong> <span id="selected-method">Not selected</span></p>
+            </div>
+            
+            <!-- GCash Payment Form -->
+            <form id="gcash-form" class="payment-form-hidden">
+                <div class="confirm-field">
+                    <label for="gcash-number">GCash Mobile Number</label>
+                    <input type="text" id="gcash-number" placeholder="09XX XXX XXXX" required>
+                </div>
+                <div class="confirm-field">
+                    <label for="gcash-name">Account Name</label>
+                    <input type="text" id="gcash-name" placeholder="Enter account name" required>
+                </div>
+                <button type="submit" class="confirm-pay-submit-btn" id="gcash-submit-btn">Complete Payment</button>
+            </form>
+            
+            <!-- Card Payment Form -->
+            <form id="card-form" class="payment-form-hidden">
+                <div class="confirm-field">
+                    <label for="card-holder">Card Holder Name</label>
+                    <input type="text" id="card-holder" placeholder="Enter your name" required>
+                </div>
+                <div class="confirm-field">
+                    <label for="card-number">Card Number</label>
+                    <input type="text" id="card-number" placeholder="XXXX XXXX XXXX XXXX" required>
+                </div>
+                <div class="confirm-field">
+                    <label for="card-expiry">Expiry (MM/YY)</label>
+                    <input type="text" id="card-expiry" placeholder="MM/YY" required>
+                </div>
+                <div class="confirm-field">
+                    <label for="card-cvv">CVV</label>
+                    <input type="text" id="card-cvv" placeholder="123" required>
+                </div>
+                <button type="submit" class="confirm-pay-submit-btn" id="card-submit-btn">Complete Payment</button>
+            </form>
+            
+            <button class="confirm-back-btn" id="back-to-booking-btn">Back to Booking</button>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    const bookingId = '{{ booking.id }}';
+    const paymentMethodSelect = document.getElementById('payment-method-select');
+    const payNowBtn = document.getElementById('pay-now-btn');
+    const paymentModal = document.getElementById('payment-modal');
+    const closePaymentModal = document.getElementById('close-payment-modal');
+    const gcashForm = document.getElementById('gcash-form');
+    const cardForm = document.getElementById('card-form');
+    const selectedMethodSpan = document.getElementById('selected-method');
+    const backToBookingBtn = document.getElementById('back-to-booking-btn');
+    
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+    // Handle payment method selection
+    paymentMethodSelect.addEventListener('change', function() {
+        const paymentMethod = this.value;
+        
+        if (paymentMethod) {
+            // Save payment method selection
+            fetch(`/confirmation/${bookingId}/payment`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken
+                },
+                body: `payment_method=${encodeURIComponent(paymentMethod)}`
+            })
+            .then(response => {
+                if (response.ok) {
+                    console.log('Payment method saved successfully');
+                    // If Cash payment, redirect to my bookings immediately
+                    if (paymentMethod === 'Cash') {
+                        alert('Payment method selected: Cash. Payment will be collected upon pickup.');
+                        window.location.href = '/my-bookings';
+                    }
+                } else {
+                    alert('Error saving payment method');
+                    this.value = ''; 
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error saving payment method');
+                this.value = ''; 
+            });
+        }
+    });
+
+    // Open payment modal
+    if (payNowBtn) {
+        payNowBtn.addEventListener('click', function() {
+            const paymentMethod = paymentMethodSelect.value;
+            if (!paymentMethod) {
+                alert('Please select a payment method first');
+                return;
+            }
+            if (paymentMethod === 'Cash') {
+                alert('Cash payment will be collected upon pickup. No online payment needed.');
+                return;
+            }
+            selectedMethodSpan.textContent = paymentMethod;
+            
+            // Show appropriate form based on payment method
+            if (paymentMethod === 'GCash') {
+                gcashForm.style.display = 'block';
+                cardForm.style.display = 'none';
+            } else if (paymentMethod === 'Card') {
+                gcashForm.style.display = 'none';
+                cardForm.style.display = 'block';
+            }
+            
+            paymentModal.style.display = 'block';
+        });
+    }
+
+    // Close payment modal
+    if (closePaymentModal) {
+        closePaymentModal.addEventListener('click', function() {
+            paymentModal.style.display = 'none';
+        });
+    }
+
+    // Close modal when clicking outside
+    window.addEventListener('click', function(event) {
+        if (event.target === paymentModal) {
+            paymentModal.style.display = 'none';
+        }
+    });
+
+    // Back to booking button
+    if (backToBookingBtn) {
+        backToBookingBtn.addEventListener('click', function() {
+            paymentModal.style.display = 'none';
+        });
+    }
+
+    // Handle GCash payment form submission
+    if (gcashForm) {
+        gcashForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const gcashNumber = document.getElementById('gcash-number').value;
+            const gcashName = document.getElementById('gcash-name').value;
+            const paymentMethod = paymentMethodSelect.value;
+
+            if (!gcashNumber || !gcashName) {
+                alert('Please fill in all GCash fields');
+                return;
+            }
+
+            // Simulate payment processing
+            const gcashSubmitBtn = document.getElementById('gcash-submit-btn');
+            gcashSubmitBtn.disabled = true;
+            gcashSubmitBtn.textContent = 'Processing...';
+
+            fetch(`/process-payment/${bookingId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    payment_method: paymentMethod,
+                    gcash_number: gcashNumber,
+                    gcash_name: gcashName
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                gcashSubmitBtn.disabled = false;
+                gcashSubmitBtn.textContent = 'Complete Payment';
+                
+                if (data.success) {
+                    alert('Payment successful! Your booking is confirmed.');
+                    window.location.href = '/my-bookings';
+                } else {
+                    alert('Payment failed: ' + (data.message || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                gcashSubmitBtn.disabled = false;
+                gcashSubmitBtn.textContent = 'Complete Payment';
+                alert('Error processing payment');
+            });
+        });
+    }
+
+    // Handle Card payment form submission
+    if (cardForm) {
+        cardForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const cardHolder = document.getElementById('card-holder').value;
+            const cardNumber = document.getElementById('card-number').value;
+            const cardExpiry = document.getElementById('card-expiry').value;
+            const cardCvv = document.getElementById('card-cvv').value;
+            const paymentMethod = paymentMethodSelect.value;
+
+            if (!cardHolder || !cardNumber || !cardExpiry || !cardCvv) {
+                alert('Please fill in all card fields');
+                return;
+            }
+
+            // Simulate payment processing
+            const cardSubmitBtn = document.getElementById('card-submit-btn');
+            cardSubmitBtn.disabled = true;
+            cardSubmitBtn.textContent = 'Processing...';
+
+            fetch(`/process-payment/${bookingId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    payment_method: paymentMethod,
+                    card_holder: cardHolder,
+                    card_number: cardNumber,
+                    card_expiry: cardExpiry,
+                    card_cvv: cardCvv
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                cardSubmitBtn.disabled = false;
+                cardSubmitBtn.textContent = 'Complete Payment';
+                
+                if (data.success) {
+                    alert('Payment successful! Your booking is confirmed.');
+                    window.location.href = '/my-bookings';
+                } else {
+                    alert('Payment failed: ' + (data.message || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                cardSubmitBtn.disabled = false;
+                cardSubmitBtn.textContent = 'Complete Payment';
+                alert('Error processing payment');
+            });
+        });
+    }
+</script>
+{% endblock %}

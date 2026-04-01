@@ -1,0 +1,900 @@
+﻿/* ========================================
+   BOOK.HTML - Modern Redesign
+   ======================================== */
+
+:root {
+    --primary: #122544;
+    --primary-light: #1b2b45;
+    --accent: #cc4f3d;
+    --accent-hover: #b83f2d;
+    --accent-gradient: linear-gradient(120deg, #cb4b3b, #e37e61);
+    --bg-light: #ffffff;
+    --bg-subtle: #f5f9ff;
+    --border-light: #d9e4f4;
+    --text-primary: #1b2b45;
+    --text-secondary: #5f7089;
+    --text-muted: #62748f;
+    --shadow-sm: 0 2px 8px rgba(13, 27, 52, 0.06);
+    --shadow-md: 0 8px 20px rgba(13, 27, 52, 0.1);
+    --shadow-lg: 0 12px 32px rgba(13, 27, 52, 0.12);
+}
+
+/* ========================================
+   MAIN CONTAINER
+   ======================================== */
+
+.book-section-form {
+    max-width: 1320px;
+    margin: 40px auto;
+    padding: 0 24px 48px;
+}
+
+.book-header {
+    text-align: center;
+    margin-bottom: 48px;
+}
+
+.book-header h2 {
+    font-size: clamp(2rem, 4vw, 2.8rem);
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0 0 12px 0;
+    letter-spacing: -0.5px;
+}
+
+.book-header p {
+    font-size: 1.05rem;
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.6;
+}
+
+/* ========================================
+   LAYOUT GRID
+   ======================================== */
+
+.book-layout {
+    display: grid;
+    grid-template-columns: 1.7fr 1fr;
+    gap: 32px;
+    align-items: start;
+}
+
+.booking-form {
+    display: grid;
+    gap: 0;
+}
+
+/* ========================================
+   PROGRESS STEPPER
+   ======================================== */
+
+.booking-stepper {
+    margin-bottom: 40px;
+}
+
+.stepper-container {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0;
+}
+
+.step-line {
+    position: absolute;
+    top: 20px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--border-light);
+    z-index: 0;
+    transition: background 0.3s ease;
+}
+
+.step-item {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    opacity: 0.5;
+    transition: opacity 0.3s ease;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.step-item.active,
+.step-item.completed {
+    opacity: 1;
+}
+
+.step-item:hover:not(.active) {
+    opacity: 0.75;
+    transform: translateY(-2px);
+}
+
+.step-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--bg-subtle);
+    border: 2px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.step-item:hover:not(.active) .step-icon {
+    background: rgba(18, 37, 68, 0.08);
+    border-color: var(--accent);
+}
+
+.step-item.active .step-icon {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--bg-light);
+    box-shadow: var(--shadow-md);
+    transform: scale(1.05);
+}
+
+.step-item.completed .step-icon {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--bg-light);
+}
+
+.step-icon svg {
+    width: 20px;
+    height: 20px;
+    stroke-width: 2.5;
+}
+
+.step-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-align: center;
+    margin-top: 4px;
+    transition: all 0.3s ease;
+}
+
+.step-item.active .step-label {
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+.step-item:hover:not(.active) .step-label {
+    color: var(--accent);
+    font-weight: 700;
+}
+
+/* ========================================
+   FORM SECTIONS
+   ======================================== */
+
+.book-section {
+    background: var(--bg-light);
+    border: 1px solid var(--border-light);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 24px;
+    transition: all 0.3s ease;
+    box-shadow: var(--shadow-sm);
+}
+
+.book-section:hover {
+    box-shadow: var(--shadow-md);
+    border-color: rgba(203, 75, 59, 0.2);
+}
+
+.section-title {
+    display: block;
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0;
+    padding: 24px 28px 6px 28px;
+    border: none;
+}
+
+.section-description {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin: 0;
+    padding: 0 28px 16px 28px;
+    font-weight: 500;
+}
+
+.section-content {
+    padding: 0 28px 24px 28px;
+}
+
+.section-info {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin: 0 0 20px 0;
+    line-height: 1.6;
+    padding: 12px 14px;
+    background: var(--bg-subtle);
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+}
+
+/* ========================================
+   FORM GRID & FIELDS
+   ======================================== */
+
+.form-grid {
+    display: grid;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.form-grid-2col {
+    grid-template-columns: repeat(2, 1fr);
+    align-items: start;
+}
+
+.form-grid-2col:last-child {
+    margin-bottom: 0;
+}
+
+.book-field {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 0;
+    align-content: start;
+}
+
+.book-field label {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: 0.2px;
+}
+
+.book-input,
+.book-file-input {
+    width: 100%;
+    padding: 10px 12px;
+    min-height: 46px;
+    font-size: 0.92rem;
+    color: var(--text-primary);
+    background: var(--bg-light);
+    border: 1.5px solid var(--border-light);
+    border-radius: 10px;
+    font-family: inherit;
+    transition: all 0.3s ease;
+    box-shadow: none;
+    box-sizing: border-box;
+}
+
+.book-input::placeholder,
+.book-file-input::placeholder {
+    color: #a8b5c7;
+}
+
+.book-input:focus,
+.book-file-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: none;
+    background: var(--bg-light);
+}
+
+.book-input:hover:not(:focus),
+.book-file-input:hover:not(:focus) {
+    border-color: #c4cfe8;
+}
+
+.book-file-input {
+    padding: 10px 12px;
+    cursor: pointer;
+}
+
+.field-hint {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin-top: 0;
+}
+
+.payment-policy-note {
+    margin: 8px 0 0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #d7e1f0;
+    background: #f4f8ff;
+    color: #385174;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    font-weight: 600;
+}
+
+.payment-policy-note.is-online {
+    border-color: #f0c9c2;
+    background: #fff5f3;
+    color: #8d3a30;
+}
+
+/* ========================================
+   VALIDATION
+   ======================================== */
+
+.error {
+    color: #bf3b2d;
+    font-size: 0.82rem;
+    font-weight: 700;
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* ========================================
+   CONFIRMATION CHECKBOX
+   ======================================== */
+
+.confirm-check {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 12px;
+    align-items: start;
+    padding: 14px 16px;
+    background: var(--bg-subtle);
+    border: 1.5px solid var(--border-light);
+    border-radius: 10px;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 20px;
+}
+
+.confirm-check:hover {
+    border-color: var(--accent);
+    background: rgba(203, 75, 59, 0.04);
+}
+
+.confirm-check input {
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    cursor: pointer;
+    accent-color: var(--accent);
+}
+
+.confirm-check span {
+    line-height: 1.5;
+    font-weight: 500;
+}
+
+/* ========================================
+   SUBMIT BUTTON
+   ======================================== */
+
+.book-submit {
+    margin-top: 20px;
+}
+
+.book-submit-btn {
+    display: inline-block;
+    width: 100%;
+    padding: 14px 28px;
+    background: var(--accent-gradient);
+    color: var(--bg-light);
+    font-size: 0.95rem;
+    font-weight: 800;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 6px 20px rgba(203, 75, 59, 0.25);
+    letter-spacing: 0.4px;
+}
+
+.book-submit-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(203, 75, 59, 0.35);
+}
+
+.book-submit-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 4px 12px rgba(203, 75, 59, 0.25);
+}
+
+/* ========================================
+   SECTION VISIBILITY & WIZARD STEPS
+   ======================================== */
+
+.hidden-step {
+    display: none;
+}
+
+.active-step {
+    display: block;
+    animation: fadeInUp 0.4s ease;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ========================================
+   SECTION ACTION BUTTONS
+   ======================================== */
+
+.section-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 0 28px 24px 28px;
+    margin-top: 12px;
+    border-top: 1px solid var(--border-light);
+    padding-top: 20px;
+}
+
+.btn-next,
+.btn-prev {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    letter-spacing: 0.3px;
+    min-height: 44px;
+}
+
+.btn-next {
+    background: var(--accent-gradient);
+    color: var(--bg-light);
+    box-shadow: 0 4px 14px rgba(203, 75, 59, 0.25);
+}
+
+.btn-next:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(203, 75, 59, 0.35);
+}
+
+.btn-next:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.btn-next:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 2px 8px rgba(203, 75, 59, 0.1);
+}
+
+.btn-next:disabled:hover {
+    transform: none;
+}
+
+.btn-prev {
+    background: var(--bg-subtle);
+    color: var(--text-primary);
+    border: 1.5px solid var(--border-light);
+}
+
+.btn-prev:hover {
+    border-color: var(--accent);
+    background: rgba(203, 75, 59, 0.06);
+    color: var(--accent);
+}
+
+.btn-prev:active {
+    background: rgba(203, 75, 59, 0.1);
+}
+
+/* ========================================
+   INPUT ERROR STATE
+   ======================================== */
+
+.error-field {
+    border-color: #bf3b2d !important;
+    background: rgba(191, 59, 45, 0.03) !important;
+    animation: pulse-error 0.4s ease;
+}
+
+@keyframes pulse-error {
+    0% {
+        box-shadow: 0 0 0 0 rgba(191, 59, 45, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 8px rgba(191, 59, 45, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(191, 59, 45, 0);
+    }
+}
+
+.error-field:focus {
+    border-color: #bf3b2d !important;
+    box-shadow: 0 0 0 3px rgba(191, 59, 45, 0.1) !important;
+}
+
+
+.booking-summary-card {
+    background: linear-gradient(150deg, #112648 0%, #1a3560 100%);
+    border-radius: 16px;
+    padding: 18px;
+    color: #ebf3ff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    position: sticky;
+    top: 92px;
+}
+
+.booking-summary-card h3 {
+    margin: 0 0 12px;
+    font-size: 1.05rem;
+}
+
+.summary-row {
+/* ========================================
+   BOOKING SUMMARY CARD
+   ======================================== */
+
+.booking-summary-card {
+    background: linear-gradient(135deg, var(--primary) 0%, #1a3560 100%);
+    border-radius: 12px;
+    color: #ebf3ff;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    position: sticky;
+    top: 100px;
+    box-shadow: var(--shadow-lg);
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.booking-summary-card h3 {
+    margin: 0;
+    padding: 20px 24px;
+    font-size: 1.1rem;
+    font-weight: 800;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.summary-item {
+    padding: 14px 24px;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 0.9rem;
+}
+
+.summary-item:last-of-type {
+    border-bottom: none;
+}
+
+.summary-label {
+    color: rgba(235, 243, 255, 0.7);
+    font-weight: 600;
+    flex: 1;
+}
+
+.summary-value {
+    color: #ebf3ff;
+    font-weight: 700;
+    max-width: 140px;
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.summary-total {
+    padding: 20px 24px;
+    background: rgba(0, 0, 0, 0.15);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.total-label {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: rgba(235, 243, 255, 0.8);
+}
+
+.total-amount {
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: #ffd8b8;
+}
+
+.summary-note {
+    padding: 14px 24px;
+    margin: 0;
+    color: rgba(235, 243, 255, 0.6);
+    font-size: 0.8rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ========================================
+   SECTION TITLE & LEGEND STYLING
+   ======================================== */
+
+/* No additional styling needed - covered above */
+
+/* ========================================
+   RESPONSIVE DESIGN
+   ======================================== */
+
+@media (max-width: 1100px) {
+    .book-layout {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+
+    .booking-summary-card {
+        position: static;
+    }
+}
+
+@media (max-width: 900px) {
+    .book-section-form {
+        padding: 0 20px 32px;
+        margin: 32px auto;
+    }
+
+    .form-grid-2col {
+        grid-template-columns: 1fr;
+    }
+
+    .form-grid {
+        gap: 16px;
+    }
+
+    .section-title {
+        font-size: 1.1rem;
+        padding: 20px 24px 4px 24px;
+    }
+
+    .section-description {
+        padding: 0 24px 12px 24px;
+        font-size: 0.85rem;
+    }
+
+    .section-content {
+        padding: 0 24px 20px 24px;
+    }
+
+    .section-actions {
+        padding: 0 24px 20px 24px;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+}
+
+@media (max-width: 640px) {
+    .book-section-form {
+        margin: 24px auto;
+        padding: 0 16px 28px;
+    }
+
+    .book-header {
+        margin-bottom: 28px;
+    }
+
+    .book-header h2 {
+        font-size: 1.6rem;
+        margin-bottom: 8px;
+    }
+
+    .book-header p {
+        font-size: 0.9rem;
+    }
+
+    .booking-stepper {
+        margin-bottom: 28px;
+    }
+
+    .stepper-container {
+        flex-wrap: wrap;
+        gap: 4px;
+        justify-content: space-around;
+    }
+
+    .step-line {
+        display: none;
+    }
+
+    .step-item {
+        flex: 0 1 calc(50% - 4px);
+    }
+
+    .step-icon {
+        width: 36px;
+        height: 36px;
+    }
+
+    .step-icon svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .step-label {
+        font-size: 0.7rem;
+    }
+
+    .book-section {
+        margin-bottom: 18px;
+        border-radius: 10px;
+    }
+
+    .section-title {
+        font-size: 1rem;
+        padding: 18px 20px 4px 20px;
+    }
+
+    .section-description {
+        padding: 0 20px 10px 20px;
+        font-size: 0.82rem;
+    }
+
+    .section-content {
+        padding: 0 20px 16px 20px;
+    }
+
+    .section-actions {
+        padding: 0 20px 16px 20px;
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .btn-next,
+    .btn-prev {
+        padding: 11px 20px;
+        font-size: 0.9rem;
+    }
+
+    .form-grid {
+        gap: 14px;
+        margin-bottom: 14px;
+    }
+
+    .book-field label {
+        font-size: 0.85rem;
+    }
+
+    .book-input,
+    .book-file-input {
+        padding: 10px 12px;
+        font-size: 0.88rem;
+        border-radius: 8px;
+    }
+
+    .field-hint {
+        font-size: 0.75rem;
+    }
+
+    .section-info {
+        font-size: 0.82rem;
+        padding: 10px 12px;
+        margin-bottom: 14px;
+    }
+
+    .confirm-check {
+        padding: 12px 14px;
+        gap: 10px;
+        font-size: 0.85rem;
+        margin-top: 16px;
+    }
+
+    .confirm-check input {
+        width: 16px;
+        height: 16px;
+    }
+
+    .book-submit {
+        margin-top: 16px;
+    }
+
+    .book-submit-btn {
+        padding: 12px 20px;
+        font-size: 0.9rem;
+        border-radius: 8px;
+    }
+
+    .booking-summary-card {
+        border-radius: 10px;
+    }
+
+    .booking-summary-card h3 {
+        padding: 16px 20px;
+        font-size: 1rem;
+    }
+
+    .summary-item {
+        padding: 12px 20px;
+        font-size: 0.85rem;
+    }
+
+    .summary-label {
+        font-size: 0.75rem;
+    }
+
+    .summary-value {
+        font-size: 0.9rem;
+        max-width: 120px;
+    }
+
+    .summary-total {
+        padding: 16px 20px;
+    }
+
+    .total-label {
+        font-size: 0.8rem;
+    }
+
+    .total-amount {
+        font-size: 1.5rem;
+    }
+
+    .summary-note {
+        padding: 12px 20px;
+        font-size: 0.75rem;
+    }
+}
+
+/* ========================================
+   ACCESSIBILITY & ANIMATIONS
+   ======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Dark mode support (optional) */
+@media (prefers-color-scheme: dark) {
+    .book-section {
+        background: #1a2e4a;
+        border-color: #2c4070;
+    }
+
+    .book-input,
+    .book-file-input {
+        background: #232f48;
+        border-color: #3c5180;
+        color: #ebf3ff;
+    }
+
+    .book-input::placeholder {
+        color: #7a8a9e;
+    }
+
+    .section-info {
+        background: #1f334e;
+        border-left-color: #e37e61;
+    }
+
+    .confirm-check {
+        background: #1a2e4a;
+        border-color: #3c5180;
+    }
+}}

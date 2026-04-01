@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+
+{% block title %}Available Cars - Rent A Car{% endblock %}
+
+{% block content %}
+<section class="cars-section">
+    <header class="cars-header">
+        <h2>Available Cars</h2>
+        <p>Use filters to quickly find the right vehicle by budget, fuel type, brand, and transmission.</p>
+    </header>
+
+    <section class="cars-filter-panel" aria-label="Car filters">
+        <div class="cars-filter-grid">
+            <label for="carSearch">
+                Search
+                <input type="text" id="carSearch" placeholder="Search by model or brand">
+            </label>
+
+            <label for="filterBrand">
+                Brand
+                <select id="filterBrand">
+                    <option value="all">All Brands</option>
+                </select>
+            </label>
+
+            <label for="filterTransmission">
+                Transmission
+                <select id="filterTransmission">
+                    <option value="all">All Types</option>
+                    <option value="automatic">Automatic</option>
+                    <option value="manual">Manual</option>
+                </select>
+            </label>
+
+            <label for="filterFuel">
+                Fuel Type
+                <select id="filterFuel">
+                    <option value="all">All Fuel Types</option>
+                    <option value="gasoline">Gasoline</option>
+                    <option value="diesel">Diesel</option>
+                    <option value="electric">Electric</option>
+                    <option value="hybrid">Hybrid</option>
+                </select>
+            </label>
+
+            <label for="priceMin">
+                Min Price (PHP/day)
+                <input type="number" id="priceMin" min="0" placeholder="0">
+            </label>
+
+            <label for="priceMax">
+                Max Price (PHP/day)
+                <input type="number" id="priceMax" min="0" placeholder="10000">
+            </label>
+        </div>
+
+        <div class="cars-filter-actions">
+            <p id="carsResultCount" aria-live="polite">Showing {{ cars|length }} cars</p>
+            <button type="button" id="resetCarFilters" class="cars-reset-btn">Reset Filters</button>
+        </div>
+    </section>
+
+    <div class="cars-grid">
+        {% for car in cars %}
+        {% set car_name = car.name|lower %}
+        {% set car_brand = car.name.split(' ')[0]|lower %}
+        {% set car_price = car.price|replace('₱', '')|replace(',', '')|replace('/day', '')|replace('perday', '')|replace('per day', '')|replace(' ', '') %}
+        {% set display_price = '₱' ~ (car.price|string|replace('₱', '')|replace('PHP', '')|replace('Php', '')|replace('php', '')|trim) %}
+
+        <article
+            class="car-card car-filter-item"
+            data-name="{{ car_name }}"
+            data-brand="{{ car_brand }}"
+            data-price="{{ car_price }}"
+            data-transmission="{{ car.transmission|lower }}"
+            data-fuel="{{ car.fuel|lower }}"
+            data-category="{% if 'suv' in car_name %}suv{% elif 'sedan' in car_name %}sedan{% elif 'luxury' in car_name %}luxury{% elif 'economy' in car_name %}economy{% else %}standard{% endif %}">
+            <div class="car-media-wrap">
+                {% if car.image %}
+                    <img src="{{ url_for('static', filename=car.image) }}" alt="{{ car.name }}">
+                {% else %}
+                    <img src="{{ url_for('static', filename='images/cars/city.jpg') }}" alt="Car Image">
+                {% endif %}
+
+                {% if car.availability %}
+                <span class="availability-chip {{ car.availability|lower }}">{{ car.availability }}</span>
+                {% endif %}
+            </div>
+
+            <div class="car-headline">
+                <h3>{{ car.name }}</h3>
+                <p class="car-price">{{ display_price }} <span>/ day</span></p>
+            </div>
+
+            <div class="car-rating">
+                {% if car.average_rating %}
+                <div class="stars">
+                    {% set rating = car.average_rating|float %}
+                    {% for i in range(1, 6) %}
+                        {% if rating >= i %}
+                            <i class="fas fa-star star-filled"></i>
+                        {% elif rating >= i - 0.5 %}
+                            <i class="fas fa-star-half-alt star-half"></i>
+                        {% else %}
+                            <i class="far fa-star star-empty"></i>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                <a href="{{ url_for('car_reviews', car_id=car.id) }}" class="car-review-link">{{ car.average_rating }} ({{ car.review_count }} reviews)</a>
+                {% else %}
+                <div class="no-reviews">
+                    <p>No reviews yet</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="car-meta-grid">
+                <div class="car-meta-item">
+                    <p>Passengers</p>
+                    <strong>{{ car.capacity }}</strong>
+                </div>
+                <div class="car-meta-item">
+                    <p>Transmission</p>
+                    <strong>{{ car.transmission }}</strong>
+                </div>
+                <div class="car-meta-item">
+                    <p>Fuel</p>
+                    <strong>{{ car.fuel }}</strong>
+                </div>
+            </div>
+
+            <div class="cars-card-actions">
+                <a href="{{ url_for('car_details', car_id=car.id) }}" class="cars-card-viewdetails-button">View Details</a>
+                <a href="{{ url_for('book') }}" class="cars-card-booknow-button">Book Now</a>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+
+    {% if cars %}
+    <div id="carsNoResults" class="cars-empty-state cars-empty-state-filters cars-hidden-state">
+        <p>No cars match your current filters.</p>
+        <button type="button" id="resetCarFiltersInline" class="cars-noresults-home-button">Clear Filters</button>
+    </div>
+    {% endif %}
+
+    {% if not cars %}
+    <div class="cars-empty-state">
+        <p>No cars available at the moment.</p>
+        <a href="{{ url_for('home') }}" class="cars-noresults-home-button">Return Home</a>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

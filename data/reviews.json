@@ -1,0 +1,184 @@
+{
+  "reviews": [
+    {
+      "id": 1,
+      "user_id": 1,
+      "car_id": 1,
+      "booking_id": 1,
+      "rating": 5,
+      "comment": "Excellent condition vehicle. Smooth driving experience. Will book again!",
+      "created_at": "2025-02-06 09:00:00"
+    },
+    {
+      "id": 2,
+      "user_id": 2,
+      "car_id": 2,
+      "booking_id": 2,
+      "rating": 4,
+      "comment": "Good car. Minor issue with AC but staff resolved it quickly.",
+      "created_at": "2025-02-08 10:30:00"
+    },
+    {
+      "id": 3,
+      "user_id": 4,
+      "car_id": 4,
+      "booking_id": 4,
+      "rating": 5,
+      "comment": "Toyota Fortuner is perfect for family trip. Very comfortable.",
+      "created_at": "2025-02-13 14:20:00"
+    },
+    {
+      "id": 4,
+      "user_id": 5,
+      "car_id": 5,
+      "booking_id": 5,
+      "rating": 4,
+      "comment": "Ford Ranger performs well. Diesel engine is economical.",
+      "created_at": "2025-02-16 11:00:00"
+    },
+    {
+      "id": 5,
+      "user_id": 7,
+      "car_id": 7,
+      "booking_id": 7,
+      "rating": 5,
+      "comment": "Suzuki Ertiga is spacious and great for family. Highly recommended!",
+      "created_at": "2025-02-19 15:45:00"
+    },
+    {
+      "id": 6,
+      "user_id": 8,
+      "car_id": 8,
+      "booking_id": 8,
+      "rating": 3,
+      "comment": "Hyundai Accent works but has some minor scratches.",
+      "created_at": "2025-02-21 12:30:00"
+    },
+    {
+      "id": 7,
+      "user_id": 9,
+      "car_id": 9,
+      "booking_id": 9,
+      "rating": 5,
+      "comment": "Toyota Hiace perfect for events. Plenty of space.",
+      "created_at": "2025-02-26 10:00:00"
+    },
+    {
+      "id": 8,
+      "user_id": 10,
+      "car_id": 10,
+      "booking_id": 10,
+      "rating": 4,
+      "comment": "Kia Picanto economical and good for city driving.",
+      "created_at": "2025-02-24 16:00:00"
+    },
+    {
+      "id": 9,
+      "user_id": 12,
+      "car_id": 12,
+      "booking_id": 12,
+      "rating": 5,
+      "comment": "Toyota Innova amazing! Great condition and very spacious.",
+      "created_at": "2025-03-03 11:30:00"
+    },
+    {
+      "id": 10,
+      "user_id": 14,
+      "car_id": 14,
+      "booking_id": 14,
+      "rating": 4,
+      "comment": "Isuzu D-Max excellent for off-road. Powerful engine.",
+      "created_at": "2025-03-06 13:45:00"
+    },
+    {
+      "id": 11,
+      "user_id": 15,
+      "car_id": 15,
+      "booking_id": 15,
+      "rating": 5,
+      "comment": "Honda City is reliable and fuel-efficient.",
+      "created_at": "2025-03-07 09:15:00"
+    },
+    {
+      "id": 12,
+      "user_id": 16,
+      "car_id": 16,
+      "booking_id": 16,
+      "rating": 4,
+      "comment": "Toyota Avanza great value. Good for long trips.",
+      "created_at": "2025-03-10 14:00:00"
+    },
+    {
+      "id": 13,
+      "user_id": 18,
+      "car_id": 18,
+      "booking_id": 18,
+      "rating": 5,
+      "comment": "Ford Everest premium quality. Excellent customer service.",
+      "created_at": "2025-03-16 10:30:00"
+    },
+    {
+      "id": 14,
+      "user_id": 19,
+      "car_id": 19,
+      "booking_id": 19,
+      "rating": 3,
+      "comment": "Chevrolet Spark good for solo city trips. Compact and agile.",
+      "created_at": "2025-03-14 15:20:00"
+    },
+    {
+      "id": 15,
+      "user_id": 1,
+      "car_id": 20,
+      "booking_id": 20,
+      "rating": 5,
+      "comment": "BMW 3 Series luxurious! Worth every peso. Outstanding experience!",
+      "created_at": "2025-03-19 11:00:00"
+    },
+    {
+      "id": 16,
+      "user_id": 3,
+      "car_id": 3,
+      "booking_id": 3,
+      "rating": 5,
+      "comment": "Mitsubishi Mirage excellent value and eco-friendly. Perfect for daily commute.",
+      "created_at": "2025-02-11 14:00:00"
+    },
+    {
+      "id": 17,
+      "user_id": 6,
+      "car_id": 6,
+      "booking_id": 6,
+      "rating": 4,
+      "comment": "Nissan Almera smooth and reliable. Good for business meetings.",
+      "created_at": "2025-02-17 10:30:00"
+    },
+    {
+      "id": 18,
+      "user_id": 11,
+      "car_id": 11,
+      "booking_id": 11,
+      "rating": 5,
+      "comment": "Honda BR-V spacious crossover. Perfect for small families.",
+      "created_at": "2025-02-28 09:00:00"
+    },
+    {
+      "id": 19,
+      "user_id": 13,
+      "car_id": 13,
+      "booking_id": 13,
+      "rating": 4,
+      "comment": "Mazda 3 stylish and fun to drive. Excellent handling.",
+      "created_at": "2025-03-03 16:45:00"
+    },
+    {
+      "id": 20,
+      "user_id": 17,
+      "car_id": 17,
+      "booking_id": 17,
+      "rating": 5,
+      "comment": "Hyundai Tucson modern SUV with great features. Very satisfied!",
+      "created_at": "2025-03-11 13:15:00"
+    }
+  ]
+}

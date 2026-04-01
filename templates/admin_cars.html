@@ -1,0 +1,53 @@
+﻿{% extends 'admin_layout.html' %}
+
+{% block title %}Manage Vehicles - Rent A Car{% endblock %}
+{% block admin_page_title %}Manage Vehicles{% endblock %}
+{% block admin_page_subtitle %}Add, update, and remove cars with clear availability status.{% endblock %}
+
+{% block admin_content %}
+<article class="admin-card">
+    <div class="admin-toolbar">
+        <h2>Vehicle List</h2>
+        <a href="{{ url_for('admin_add_car') }}" class="admin-primary-btn"><i class="fas fa-plus"></i> Add New Vehicle</a>
+    </div>
+
+    {% if cars %}
+    <div class="admin-table-wrap">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Car Name</th>
+                    <th>Type</th>
+                    <th>Price / Day</th>
+                    <th>Availability</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for car in cars %}
+                <tr>
+                    <td>{{ car.id }}</td>
+                    <td>{{ car.name }}</td>
+                    <td>{{ car.transmission }} / {{ car.fuel }}</td>
+                    <td>PHP {{ car.price }}</td>
+                    <td>
+                        <span class="admin-status-badge admin-status-{{ (car.availability or 'available')|lower }}">{{ car.availability or 'Available' }}</span>
+                    </td>
+                    <td>
+                        <a href="{{ url_for('admin_edit_car', car_id=car.id) }}" class="admin-secondary-btn">Edit</a>
+                        <form method="POST" action="{{ url_for('admin_delete_car', car_id=car.id) }}" style="display:inline;" onsubmit="return confirm('Delete this vehicle and related records? This action cannot be undone.');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="admin-danger-btn">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="admin-empty">No vehicles available yet.</p>
+    {% endif %}
+</article>
+{% endblock %}

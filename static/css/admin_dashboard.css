@@ -1,0 +1,78 @@
+﻿/* ========================================
+   ADMIN DASHBOARD PAGE STYLES
+   ======================================== */
+
+.admin-dashboard-grid {
+    display: grid;
+    gap: 14px;
+}
+
+.admin-metric-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.admin-metric-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 152px;
+}
+
+.admin-metric-card p {
+    margin: 0;
+    color: #5f7089;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.admin-metric-card h3 {
+    margin: 8px 0 14px;
+    color: #1f3258;
+    font-size: 2.6rem;
+    line-height: 1;
+}
+
+.metric-note {
+    color: #697b96;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.dashboard-note {
+    margin: 8px 0 0;
+    color: #5f7089;
+    line-height: 1.6;
+    font-size: 0.88rem;
+}
+
+.admin-action-group {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    margin-left: auto;
+}
+
+@media (max-width: 1180px) {
+    .admin-metric-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .admin-metric-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-metric-card h3 {
+        font-size: 2rem;
+    }
+
+    .admin-action-group {
+        justify-content: flex-start;
+        margin-left: 0;
+    }
+}

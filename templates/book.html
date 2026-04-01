@@ -1,0 +1,911 @@
+{% extends 'base.html' %}
+
+{% block title %}Book Now - Rent A Car{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<section class="book-section-form">
+    <div class="book-header reveal-up">
+        <h2>Book Your Perfect Ride</h2>
+        <p>Simple, transparent, and hassle-free booking process</p>
+    </div>
+
+    <div class="book-layout">
+    <form method="post" enctype="multipart/form-data" class="booking-form" id="bookingForm" novalidate onsubmit="return validateFormSubmission()">
+        {{ form.hidden_tag() }}
+
+        <!-- Modern Progress Stepper -->
+        <div class="booking-stepper" aria-hidden="true">
+            <div class="stepper-container">
+                <div class="step-line"></div>
+                <button type="button" class="step-item active" data-step="1">
+                    <div class="step-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                    </div>
+                    <span class="step-label">Personal</span>
+                </button>
+                <button type="button" class="step-item" data-step="2">
+                    <div class="step-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 17h2v.5a2.5 2.5 0 0 1-5 0V17a3 3 0 0 0-3-3H5a3 3 0 0 0-3 3v.5a2.5 2.5 0 0 1-5 0V17h2"></path>
+                            <path d="M7 11h10M12 17v4M11 21h2"></path>
+                        </svg>
+                    </div>
+                    <span class="step-label">Rental</span>
+                </button>
+                <button type="button" class="step-item" data-step="3">
+                    <div class="step-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                            <line x1="1" y1="10" x2="23" y2="10"></line>
+                        </svg>
+                    </div>
+                    <span class="step-label">Payment</span>
+                </button>
+                <button type="button" class="step-item" data-step="4">
+                    <div class="step-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </div>
+                    <span class="step-label">Confirm</span>
+                </button>
+            </div>
+        </div>
+
+        <fieldset class="book-section reveal-up" id="personal-section">
+            <legend class="section-title">Personal Information</legend>
+            <p class="section-description">Tell us who you are</p>
+            <div class="section-content">
+                <div class="form-grid form-grid-2col">
+                    <div class="book-field">
+                        {{ form.name.label }}
+                        {{ form.name(placeholder="John Doe", class="book-input", id="bookingName", required=true) }}
+                        {% if form.name.errors %}
+                            <div class="error" role="alert">{{ form.name.errors[0] }}</div>
+                        {% endif %}
+                        <small class="field-hint">Your legal full name for verification</small>
+                    </div>
+
+                    <div class="book-field">
+                        {{ form.email.label }}
+                        {{ form.email(placeholder="you@example.com", class="book-input", id="bookingEmail", required=true) }}
+                        {% if form.email.errors %}
+                            <div class="error" role="alert">{{ form.email.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="book-field">
+                    {{ form.contact.label }}
+                    {{ form.contact(placeholder="09XXXXXXXXX or +63XXXXXXXXXX", class="book-input", id="bookingContact", required=true) }}
+                    {% if form.contact.errors %}
+                        <div class="error" role="alert">{{ form.contact.errors[0] }}</div>
+                    {% endif %}
+                    <small class="field-hint">For pickup coordination and booking updates</small>
+                </div>
+            </div>
+            <div class="section-actions">
+                <button type="button" class="btn-next" onclick="nextStep(1)">Next Step</button>
+            </div>
+        </fieldset>
+
+        <fieldset class="book-section reveal-up delay-08" id="rental-section">
+            <legend class="section-title">Rental Details</legend>
+            <p class="section-description">Choose your vehicle and dates</p>
+            <div class="section-content">
+                <p class="section-info">Note: Dates that are blocked or not clickable are already rented by another customer.</p>
+                <div class="form-grid form-grid-2col">
+                    <div class="book-field">
+                        {{ form.pickup_area.label }}
+                        <select id="pickup_area" name="pickup_area" class="book-input" title="Pick-up Area" required>
+                            <option value="">-- Select pick-up area --</option>
+                            {% for value, label in form.pickup_area.choices %}
+                            <option value="{{ value }}" {% if form.pickup_area.data == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        {% if form.pickup_area.errors %}
+                            <div class="error" role="alert">{{ form.pickup_area.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="book-field">
+                        {{ form.car.label }}
+                        <select id="car" name="car" class="book-input" title="Selected Car" required>
+                            <option value="">-- Select a car --</option>
+                            {% for c in cars %}
+                            {%- set num = c.price | replace('₱','') | replace(',','') | replace('/day','') | replace(' per day','') -%}
+                            <option value="{{ c.id }}" data-price="{{ num.strip() }}">{{ c.name }} - {{ c.price }} / day</option>
+                            {% endfor %}
+                        </select>
+                        {% if form.car.errors %}
+                            <div class="error" role="alert">{{ form.car.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="book-field">
+                        {{ form.pickup.label }}
+                        {{ form.pickup(class="book-input", id="pickup", type="text", required=true, autocomplete="off") }}
+                        {% if form.pickup.errors %}
+                            <div class="error" role="alert">{{ form.pickup.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="book-field">
+                        {{ form.return_date.label }}
+                        {{ form.return_date(class="book-input", id="return_date", type="text", required=true, autocomplete="off") }}
+                        {% if form.return_date.errors %}
+                            <div class="error" role="alert">{{ form.return_date.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="section-actions">
+                <button type="button" class="btn-prev" onclick="prevStep(2)">Back</button>
+                <button type="button" class="btn-next" onclick="nextStep(2)">Next Step</button>
+            </div>
+        </fieldset>
+
+        <fieldset class="book-section reveal-up delay-16" id="payment-section">
+            <legend class="section-title">Payment Method</legend>
+            <p class="section-description">How would you like to pay?</p>
+            <div class="section-content">
+                <div class="book-field">
+                    {{ form.payment_method.label }}
+                    <select id="payment_method" name="payment_method" class="book-input" title="Payment Method" required>
+                        <option value="">Select payment method</option>
+                        <option value="Cash">Cash on Pickup</option>
+                        <option value="GCash">GCash</option>
+                        <option value="Card">Credit/Debit Card</option>
+                    </select>
+                    {% if form.payment_method.errors %}
+                        <div class="error" role="alert">{{ form.payment_method.errors[0] }}</div>
+                    {% endif %}
+                    <small class="field-hint">No hidden fees • Final amount confirmed before payment</small>
+                    <p id="payment-policy-note" class="payment-policy-note">
+                        Note: Online payment (GCash/Card) is available only after admin approves your booking. A Pay button will appear in My Bookings once approved.
+                    </p>
+                </div>
+            </div>
+            <div class="section-actions">
+                <button type="button" class="btn-prev" onclick="prevStep(3)">Back</button>
+                <button type="button" class="btn-next" onclick="nextStep(3)">Next Step</button>
+            </div>
+        </fieldset>
+
+        <fieldset class="book-section reveal-up delay-24" id="confirm-section">
+            <legend class="section-title">Verification & Confirmation</legend>
+            <p class="section-description">Final step: upload documents</p>
+            <div class="section-content">
+                <p class="section-info">Please upload clear photos of your valid ID and driver's license for verification.</p>
+                <div class="form-grid form-grid-2col">
+                    <div class="book-field">
+                        {{ form.id_file.label }}
+                        {{ form.id_file(class="book-file-input", required=true, id="id_file") }}
+                        {% if form.id_file.errors %}
+                            <div class="error" role="alert">{{ form.id_file.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="book-field">
+                        {{ form.license_file.label }}
+                        {{ form.license_file(class="book-file-input", required=true, id="license_file") }}
+                        {% if form.license_file.errors %}
+                            <div class="error" role="alert">{{ form.license_file.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="book-field">
+                    {{ form.notes.label }}
+                    {{ form.notes(placeholder="Any special requests?", class="book-input") }}
+                </div>
+
+                <label class="confirm-check">
+                    <input type="checkbox" id="bookingConfirmCheck" required>
+                    <span>I confirm all details are accurate and understand the pricing terms</span>
+                </label>
+
+                <div class="section-actions">
+                    <button type="button" class="btn-prev" onclick="prevStep(4)">Back</button>
+                    <button type="submit" class="btn-next">Confirm & Submit Booking</button>
+                </div>
+            </div>
+        </fieldset>
+    </form>
+
+    <aside class="booking-summary-card reveal-up" aria-live="polite">
+        <h3>Order Summary</h3>
+        
+        <div class="summary-item">
+            <span class="summary-label">Selected Car</span>
+            <strong class="summary-value" id="summaryCar">—</strong>
+        </div>
+        <div class="summary-item">
+            <span class="summary-label">Rental Dates</span>
+            <strong class="summary-value" id="summaryDates">—</strong>
+        </div>
+        <div class="summary-item">
+            <span class="summary-label">Rental Days</span>
+            <strong class="summary-value" id="summaryDays">0</strong>
+        </div>
+
+        <div class="summary-total">
+            <span class="total-label">Total</span>
+            <strong class="total-amount" id="totalDisplay">PHP 0</strong>
+        </div>
+
+        <p class="summary-note">Final total confirmed after admin approval</p>
+    </aside>
+
+    </div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+let currentStep = 1;
+let isSubmittingForm = false;
+let rentalAvailabilityState = 'unknown';
+let rentalAvailabilityMessage = '';
+let checkCarAvailability = null;
+let pickupPicker = null;
+let returnPicker = null;
+let latestAvailabilityRequestId = 0;
+
+function updatePaymentPolicyNote() {
+    const paymentMethodField = document.getElementById('payment_method');
+    const policyNote = document.getElementById('payment-policy-note');
+    if (!paymentMethodField || !policyNote) return;
+
+    const method = paymentMethodField.value;
+
+    if (method === 'GCash' || method === 'Card') {
+        policyNote.textContent = 'Note: Online payment (' + method + ') is available only after admin approves your booking. Go to My Bookings and click Pay once approved.';
+        policyNote.classList.add('is-online');
+    } else if (method === 'Cash') {
+        policyNote.textContent = 'Note: Cash is collected on pickup after admin approval. No online payment is required.';
+        policyNote.classList.remove('is-online');
+    } else {
+        policyNote.textContent = 'Note: Online payment (GCash/Card) is available only after admin approves your booking. A Pay button will appear in My Bookings once approved.';
+        policyNote.classList.remove('is-online');
+    }
+}
+
+function getCsrfToken() {
+    const tokenMeta = document.querySelector('meta[name="csrf-token"]');
+    return tokenMeta ? tokenMeta.getAttribute('content') : '';
+}
+
+function normalizeBookedRanges(ranges) {
+    if (!Array.isArray(ranges)) return [];
+    return ranges
+        .filter(range => range && range.from && range.to)
+        .map(range => ({ from: range.from, to: range.to }));
+}
+
+async function fetchBookedRanges(carId) {
+    if (!carId) return [];
+    try {
+        const response = await fetch(`/api/car/${carId}/booked`);
+        const data = await response.json();
+        return normalizeBookedRanges(data.booked_ranges || []);
+    } catch (error) {
+        console.error('Failed to load booked ranges:', error);
+        return [];
+    }
+}
+
+function applyDisabledDatesToPickers(bookedRanges) {
+    if (!pickupPicker || !returnPicker) return;
+
+    pickupPicker.set('disable', bookedRanges);
+    returnPicker.set('disable', bookedRanges);
+
+    if (pickupPicker.selectedDates.length > 0 && pickupPicker.isEnabled(pickupPicker.selectedDates[0]) === false) {
+        pickupPicker.clear();
+    }
+
+    if (returnPicker.selectedDates.length > 0 && returnPicker.isEnabled(returnPicker.selectedDates[0]) === false) {
+        returnPicker.clear();
+    }
+}
+
+async function refreshBookedDatesForSelectedCar() {
+    const carField = document.getElementById('car');
+    if (!carField) return;
+    const selectedCarId = carField.value;
+    const bookedRanges = await fetchBookedRanges(selectedCarId);
+    applyDisabledDatesToPickers(bookedRanges);
+}
+
+// Show a specific step
+function showStep(step) {
+    console.log('=== showStep called:', step, '===');
+    
+    const sections = ['personal-section', 'rental-section', 'payment-section', 'confirm-section'];
+    const stepItems = document.querySelectorAll('.step-item');
+    
+    // Hide all sections FIRST
+    console.log('Hiding all sections...');
+    sections.forEach(sectionId => {
+        const section = document.getElementById(sectionId);
+        if (section) {
+            section.style.display = 'none';
+            section.style.visibility = 'hidden';
+            console.log('✓ Hidden:', sectionId);
+        } else {
+            console.warn('! Section not found:', sectionId);
+        }
+    });
+    
+    // Show current step
+    const activeSectionId = sections[step - 1];
+    const activeSection = document.getElementById(activeSectionId);
+    
+    if (activeSection) {
+        console.log('Showing section:', activeSectionId);
+        activeSection.style.display = 'block';
+        activeSection.style.visibility = 'visible';
+        activeSection.style.opacity = '1';
+        console.log('✓ Section now visible:', activeSectionId);
+        
+        // Count input fields in this section
+        const inputs = activeSection.querySelectorAll('input, select, textarea');
+        console.log('  Input fields in this section:', inputs.length);
+        
+        // Focus first input after a brief delay
+        setTimeout(() => {
+            const firstInput = activeSection.querySelector('input[type="text"], input[type="email"], input[type="tel"], input[type="date"], select, textarea');
+            if (firstInput) {
+                try {
+                    firstInput.focus();
+                    console.log('✓ Focused on:', firstInput.name || firstInput.id);
+                } catch (e) {
+                    console.error('Error focusing input:', e);
+                }
+            }
+        }, 200);
+    } else {
+        console.error('Active section not found:', activeSectionId);
+    }
+    
+    // Update step indicators
+    console.log('Updating step indicators...');
+    stepItems.forEach((item, index) => {
+        item.classList.remove('active', 'completed');
+        
+        if (index + 1 < step) {
+            item.classList.add('completed');
+            console.log('✓ Step', index + 1, 'marked as completed');
+        } else if (index + 1 === step) {
+            item.classList.add('active');
+            console.log('✓ Step', index + 1, 'marked as active');
+        }
+    });
+    
+    // Update Next button status
+    setTimeout(() => {
+        updateNextButtonStatus(step);
+    }, 300);
+    
+    console.log('=== showStep completed ===\n');
+}
+
+// Validate current step - real time
+function validateStepRealTime(step) {
+    const fieldMap = {
+        1: ['bookingName', 'bookingEmail', 'bookingContact'],
+        2: ['pickup_area', 'car', 'pickup', 'return_date'],
+        3: ['payment_method'],
+        4: ['id_file', 'license_file', 'bookingConfirmCheck']
+    };
+    
+    const fieldsToCheck = fieldMap[step] || [];
+    let isValid = true;
+    let emptyFields = [];
+    
+    fieldsToCheck.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (!field) return;
+        
+        let isEmpty = false;
+        let fieldName = field.name || fieldId;
+        
+        if (field.type === 'checkbox') {
+            isEmpty = !field.checked;
+        } else if (field.type === 'file') {
+            isEmpty = field.files.length === 0;
+        } else {
+            isEmpty = !field.value || field.value.trim() === '';
+        }
+        
+        if (isEmpty) {
+            field.style.borderColor = '#bf3b2d';
+            field.style.backgroundColor = 'rgba(191, 59, 45, 0.03)';
+            emptyFields.push(fieldName);
+            isValid = false;
+        } else {
+            field.style.borderColor = '';
+            field.style.backgroundColor = '';
+        }
+    });
+    
+    // For rental step, don't allow progress unless conflict check confirms availability
+    if (step === 2 && isValid) {
+        if (rentalAvailabilityState !== 'available') {
+            isValid = false;
+            if (rentalAvailabilityMessage) {
+                emptyFields.push(rentalAvailabilityMessage);
+            } else if (rentalAvailabilityState === 'checking') {
+                emptyFields.push('availability check in progress');
+            } else {
+                emptyFields.push('car availability not yet confirmed');
+            }
+        }
+    }
+    
+    return { isValid, emptyFields };
+}
+
+// Update Next button status based on current step validation
+function updateNextButtonStatus(step) {
+    const nextBtn = document.querySelector(`[onclick="nextStep(${step})"]`);
+    if (!nextBtn) return;
+    
+    const validation = validateStepRealTime(step);
+    
+    if (validation.isValid) {
+        nextBtn.disabled = false;
+        nextBtn.style.opacity = '1';
+        nextBtn.style.cursor = 'pointer';
+    } else {
+        nextBtn.disabled = true;
+        nextBtn.style.opacity = '0.5';
+        nextBtn.style.cursor = 'not-allowed';
+        console.log('Fields that need to be filled:', validation.emptyFields);
+    }
+}
+
+// Validate current step for submission
+function validateStep(step) {
+    const validation = validateStepRealTime(step);
+    
+    if (!validation.isValid) {
+        alert('Please fill in all required fields: ' + validation.emptyFields.join(', '));
+    }
+    
+    return validation.isValid;
+}
+
+async function validateStepAsync(step) {
+    if (step === 2 && typeof checkCarAvailability === 'function') {
+        const basicValidation = validateStepRealTime(step);
+        const hasRequiredValues = !basicValidation.emptyFields.some(field =>
+            field === 'pickup_area' || field === 'car' || field === 'pickup' || field === 'return_date'
+        );
+
+        if (hasRequiredValues) {
+            const available = await checkCarAvailability();
+            if (!available) {
+                const message = rentalAvailabilityMessage || 'Selected dates conflict with existing booking.';
+                alert(message);
+                updateNextButtonStatus(2);
+                return false;
+            }
+        }
+    }
+
+    return validateStep(step);
+}
+
+// Validate form before submission
+function validateFormSubmission() {
+    console.log('Form submission validation for step:', currentStep);
+    
+    // Validate the current step (should be step 4 at this point)
+    const validation = validateStepRealTime(currentStep);
+    
+    if (validation.isValid) {
+        console.log('✓ All step 4 fields valid - allowing form submission');
+        isSubmittingForm = true;
+        return true;
+    } else {
+        console.log('✗ Validation failed for step 4:', validation.emptyFields);
+        alert('Please fill in all required fields: ' + validation.emptyFields.join(', '));
+        isSubmittingForm = false;
+        return false;
+    }
+}
+
+// Next step with validation
+async function nextStep(fromStep) {
+    console.log('nextStep called from step:', fromStep);
+    
+    if (await validateStepAsync(fromStep)) {
+        if (fromStep === 4) {
+            // On final step - submit the form
+            console.log('Final step validated - submitting form');
+            const form = document.getElementById('bookingForm');
+            if (form) {
+                form.submit();
+            }
+        } else {
+            // Move to next step
+            currentStep = fromStep + 1;
+            if (currentStep <= 4) {
+                showStep(currentStep);
+            }
+        }
+    } else {
+        console.log('Validation failed for step:', fromStep);
+    }
+}
+
+// Previous step (no validation needed)
+function prevStep(fromStep) {
+    console.log('prevStep called from step:', fromStep);
+    
+    currentStep = Math.max(1, fromStep - 1);
+    showStep(currentStep);
+}
+
+// Click on step indicator to jump
+function jumpToStep(stepNumber) {
+    console.log('jumpToStep called:', stepNumber);
+    
+    if (stepNumber <= currentStep) {
+        // Can go back to previous steps
+        currentStep = stepNumber;
+        showStep(currentStep);
+    } else if (validateStep(currentStep)) {
+        // Can jump forward only if current step is valid
+        currentStep = stepNumber;
+        showStep(currentStep);
+    } else {
+        console.log('Cannot jump forward - current step not completed');
+    }
+}
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOMContentLoaded triggered');
+    
+    try {
+        // First, hide all sections
+        const sections = ['personal-section', 'rental-section', 'payment-section', 'confirm-section'];
+        sections.forEach(sectionId => {
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.style.display = 'none';
+                console.log('Hidden section:', sectionId);
+            }
+        });
+        
+        // Setup date validation
+        const pickupDateField = document.getElementById('pickup');
+        const returnDateField = document.getElementById('return_date');
+        const carField = document.getElementById('car');
+        const paymentMethodField = document.getElementById('payment_method');
+
+        if (paymentMethodField) {
+            paymentMethodField.addEventListener('change', updatePaymentPolicyNote);
+            updatePaymentPolicyNote();
+        }
+        
+        if (pickupDateField && returnDateField) {
+            console.log('Date fields found - setting up validation');
+
+            pickupPicker = flatpickr(pickupDateField, {
+                dateFormat: 'Y-m-d',
+                minDate: 'today',
+                disableMobile: true,
+                onChange: function(selectedDates, dateStr) {
+                    const pickupDate = dateStr;
+                    if (pickupDate) {
+                        returnPicker.set('minDate', pickupDate);
+                        if (returnDateField.value && returnDateField.value < pickupDate) {
+                            returnPicker.clear();
+                        }
+                    } else {
+                        returnPicker.set('minDate', 'today');
+                    }
+
+                    checkCarAvailability();
+                    updateNextButtonStatus(2);
+                }
+            });
+
+            returnPicker = flatpickr(returnDateField, {
+                dateFormat: 'Y-m-d',
+                minDate: 'today',
+                disableMobile: true,
+                onChange: function() {
+                    checkCarAvailability();
+                    updateNextButtonStatus(2);
+                }
+            });
+            
+            function showConflictError(message) {
+                const rentalSection = document.getElementById('rental-section');
+                const existingError = rentalSection.querySelector('.conflict-error');
+                if (existingError) {
+                    existingError.remove();
+                }
+
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'conflict-error';
+                errorDiv.style.cssText = `
+                    background: rgba(191, 59, 45, 0.1);
+                    border: 1.5px solid #bf3b2d;
+                    border-radius: 10px;
+                    padding: 14px;
+                    margin-bottom: 20px;
+                    color: #bf3b2d;
+                    font-weight: 600;
+                `;
+                errorDiv.innerHTML = `
+                    <strong>Booking Conflict Detected</strong><br>
+                    ${message}<br>
+                    <small style="font-weight: normal;">Please select different dates or a different car.</small>
+                `;
+
+                const sectionContent = rentalSection.querySelector('.section-content');
+                sectionContent.insertBefore(errorDiv, sectionContent.firstChild);
+            }
+
+            function clearConflictError() {
+                const rentalSection = document.getElementById('rental-section');
+                const existingError = rentalSection.querySelector('.conflict-error');
+                if (existingError) {
+                    existingError.remove();
+                }
+            }
+
+            // Function to check car availability
+            checkCarAvailability = async function() {
+                const selectedCar = carField.value;
+                const pickupDate = pickupDateField.value;
+                const returnDate = returnDateField.value;
+                const requestId = ++latestAvailabilityRequestId;
+                const snapshot = {
+                    car: selectedCar,
+                    pickup: pickupDate,
+                    returnDate: returnDate
+                };
+                
+                console.log('Checking availability:', { selectedCar, pickupDate, returnDate });
+                clearConflictError();
+                
+                if (!selectedCar || !pickupDate || !returnDate) {
+                    console.log('Incomplete date/car selection');
+                    rentalAvailabilityState = 'unknown';
+                    rentalAvailabilityMessage = '';
+                    updateNextButtonStatus(2);
+                    return true; // Allow to proceed without validation if incomplete
+                }
+
+                rentalAvailabilityState = 'checking';
+                rentalAvailabilityMessage = 'Checking availability...';
+                updateNextButtonStatus(2);
+                
+                try {
+                    // Call backend to check availability
+                    const response = await fetch('/check-booking-conflict', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCsrfToken(),
+                            'X-CSRF-Token': getCsrfToken(),
+                        },
+                        body: JSON.stringify({
+                            car_id: selectedCar,
+                            pickup_date: pickupDate,
+                            return_date: returnDate
+                        })
+                    });
+
+                    let data = { has_conflict: false, message: '' };
+                    const responseContentType = response.headers.get('content-type') || '';
+                    if (responseContentType.includes('application/json')) {
+                        data = await response.json();
+                    } else {
+                        const rawText = await response.text();
+                        console.warn('Non-JSON availability response:', rawText);
+                        throw new Error('Availability check returned non-JSON response');
+                    }
+
+                    console.log('Availability check result:', data);
+
+                    // Ignore outdated responses from older requests
+                    const currentSnapshot = {
+                        car: carField.value,
+                        pickup: pickupDateField.value,
+                        returnDate: returnDateField.value
+                    };
+
+                    const isOutdated = requestId !== latestAvailabilityRequestId ||
+                        snapshot.car !== currentSnapshot.car ||
+                        snapshot.pickup !== currentSnapshot.pickup ||
+                        snapshot.returnDate !== currentSnapshot.returnDate;
+
+                    if (isOutdated) {
+                        console.log('Ignoring outdated availability response:', { requestId, latestAvailabilityRequestId });
+                        return false;
+                    }
+                    
+                    if (data.has_conflict) {
+                        rentalAvailabilityState = 'conflict';
+                        rentalAvailabilityMessage = data.message || 'This car is not available for the selected dates.';
+                        showConflictError(rentalAvailabilityMessage);
+                        updateNextButtonStatus(2);
+                        return false;
+                    } else {
+                        console.log('✓ Car is available for selected dates');
+                        rentalAvailabilityState = 'available';
+                        rentalAvailabilityMessage = '';
+                        updateNextButtonStatus(2);
+                        return true;
+                    }
+                } catch (error) {
+                    console.error('Error checking availability:', error);
+                    // Ignore outdated failures as well
+                    if (requestId !== latestAvailabilityRequestId) {
+                        return false;
+                    }
+
+                    rentalAvailabilityState = 'unknown';
+                    rentalAvailabilityMessage = 'Availability check failed. Please reselect your dates.';
+                    clearConflictError();
+                    updateNextButtonStatus(2);
+                    return false;
+                }
+            };
+            
+            // When pickup date changes
+            pickupDateField.addEventListener('change', function() {
+                const pickupDate = this.value;
+                console.log('Pickup date changed to:', pickupDate);
+                
+                if (pickupDate) {
+                    if (returnPicker) {
+                        returnPicker.set('minDate', pickupDate);
+                    }
+                    console.log('Return date minimum set to:', pickupDate);
+                    
+                    if (returnDateField.value < pickupDate) {
+                        if (returnPicker) {
+                            returnPicker.clear();
+                        } else {
+                            returnDateField.value = '';
+                        }
+                        console.log('Return date cleared - was before pickup date');
+                    }
+                    
+                    // Check availability when dates change
+                    checkCarAvailability();
+                }
+            });
+            
+            // When return date changes
+            returnDateField.addEventListener('change', function() {
+                const pickupDate = pickupDateField.value;
+                const returnDate = this.value;
+                
+                console.log('Return date changed to:', returnDate);
+                
+                if (pickupDate && returnDate < pickupDate) {
+                    console.log('Error: Return date is before pickup date!');
+                    this.value = '';
+                    alert('Return date must be on or after the pickup date');
+                } else if (pickupDate && returnDate) {
+                    // Check availability when dates change
+                    checkCarAvailability();
+                }
+            });
+            
+            // When car selection changes
+            carField.addEventListener('change', function() {
+                console.log('Car selection changed to:', this.value);
+                refreshBookedDatesForSelectedCar();
+                if (pickupDateField.value && returnDateField.value) {
+                    checkCarAvailability();
+                }
+            });
+            
+            // Set initial minimum
+            if (pickupDateField.value) {
+                if (returnPicker) {
+                    returnPicker.set('minDate', pickupDateField.value);
+                }
+            }
+
+            refreshBookedDatesForSelectedCar();
+        }
+        
+        // Add real-time validation to all input fields
+        console.log('Setting up real-time validation listeners...');
+        
+        const stepDefinitions = {
+            1: ['bookingName', 'bookingEmail', 'bookingContact'],
+            2: ['pickup_area', 'car', 'pickup', 'return_date'],
+            3: ['payment_method'],
+            4: ['id_file', 'license_file', 'bookingConfirmCheck']
+        };
+        
+        // For each step, add listeners to its fields
+        Object.entries(stepDefinitions).forEach(([stepNum, fieldIds]) => {
+            fieldIds.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    // Add change listener
+                    field.addEventListener('change', function() {
+                        console.log(`Field ${fieldId} changed - updating button status for step ${stepNum}`);
+                        updateNextButtonStatus(parseInt(stepNum));
+                    });
+                    
+                    // Add input listener for text fields
+                    if (field.type === 'text' || field.type === 'email' || field.type === 'tel' || field.type === 'date') {
+                        field.addEventListener('input', function() {
+                            updateNextButtonStatus(parseInt(stepNum));
+                        });
+                    }
+                }
+            });
+        });
+        
+        const stepItems = document.querySelectorAll('.step-item');
+        console.log('Found step items:', stepItems.length);
+        
+        stepItems.forEach((item, index) => {
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                console.log('Step clicked:', index + 1);
+                jumpToStep(index + 1);
+            });
+            
+            // Remove old onclick attributes
+            item.removeAttribute('onclick');
+        });
+        
+        // Ensure proper form setup
+        const form = document.getElementById('bookingForm');
+        if (form) {
+            // Prevent form submission on Enter key for text inputs
+            form.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+                    e.preventDefault();
+                    console.log('Enter key prevented on input');
+                }
+            });
+        }
+        
+        // Initialize first step
+        showStep(1);
+        console.log('Step 1 initialized - should be visible');
+        
+        // Initialize button states for all steps
+        for (let step = 1; step <= 3; step++) {
+            setTimeout(() => {
+                updateNextButtonStatus(step);
+            }, 100);
+        }
+        
+    } catch (error) {
+        console.error('Error during initialization:', error);
+    }
+});
+
+// Prevent page unload with unsaved changes warning (optional)
+window.addEventListener('beforeunload', function(e) {
+    // Warn only when user is mid-process, not while valid form submission is in progress
+    const form = document.getElementById('bookingForm');
+    if (form && currentStep > 1 && !isSubmittingForm) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+});
+</script>
+{% endblock %}

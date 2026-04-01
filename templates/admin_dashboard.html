@@ -1,0 +1,84 @@
+﻿{% extends 'admin_layout.html' %}
+
+{% block title %}Admin Dashboard - Rent A Car{% endblock %}
+{% block admin_page_title %}Dashboard{% endblock %}
+{% block admin_page_subtitle %}Simple overview of vehicles, bookings, and customer activity.{% endblock %}
+
+{% block admin_content %}
+<section class="admin-dashboard-grid">
+    <div class="admin-metric-grid">
+        <article class="admin-card admin-metric-card">
+            <p>Total Vehicles</p>
+            <h3>{{ total_cars }}</h3>
+            <a href="{{ url_for('admin_cars') }}" class="admin-soft-btn">Manage Vehicles</a>
+        </article>
+        <article class="admin-card admin-metric-card">
+            <p>Available Cars</p>
+            <h3>{{ available_cars }}</h3>
+            <span class="metric-note">Ready to rent</span>
+        </article>
+        <article class="admin-card admin-metric-card">
+            <p>Total Bookings</p>
+            <h3>{{ total_bookings }}</h3>
+            <a href="{{ url_for('admin_bookings') }}" class="admin-soft-btn">Manage Bookings</a>
+        </article>
+        <article class="admin-card admin-metric-card">
+            <p>Active Rentals</p>
+            <h3>{{ active_rentals }}</h3>
+            <span class="metric-note">Approved / Returned</span>
+        </article>
+    </div>
+
+    <article class="admin-card">
+        <div class="admin-toolbar">
+            <h2>Quick Actions</h2>
+            <div class="admin-action-group">
+                <a href="{{ url_for('admin_add_car') }}" class="admin-primary-btn"><i class="fas fa-plus"></i> Add Vehicle</a>
+                <a href="{{ url_for('admin_add_user') }}" class="admin-secondary-btn"><i class="fas fa-user-plus"></i> Add Customer</a>
+            </div>
+        </div>
+        <p class="dashboard-note">All destructive actions (delete/cancel) require explicit confirmation to prevent accidental data loss.</p>
+    </article>
+
+    <article class="admin-card">
+        <div class="admin-toolbar">
+            <h2>Recent Bookings</h2>
+            <a href="{{ url_for('admin_bookings') }}" class="admin-secondary-btn">View All</a>
+        </div>
+        {% if recent_bookings %}
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Customer</th>
+                        <th>Vehicle</th>
+                        <th>Pickup</th>
+                        <th>Return</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for booking in recent_bookings %}
+                    <tr>
+                        <td>{{ booking.name }}</td>
+                        <td>{{ booking.car.name }}</td>
+                        <td>{{ booking.pickup_date.strftime('%Y-%m-%d') }}</td>
+                        <td>{{ booking.return_date.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            <span class="admin-status-badge admin-status-{{ booking.status.lower() }}">{{ booking.status }}</span>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('admin_booking_details', booking_id=booking.id) }}" class="admin-soft-btn">View Details</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="admin-empty">No recent bookings available.</p>
+        {% endif %}
+    </article>
+</section>
+{% endblock %}

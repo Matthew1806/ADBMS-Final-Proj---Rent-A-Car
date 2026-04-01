@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+
+{% block title %}My Bookings - Rent A Car{% endblock %}
+
+{% block content %}
+<section class="bookings-section">
+    <div class="bookings-header reveal-up">
+        <h2>My Bookings</h2>
+        <p>Track every reservation with clear status, dates, and cost breakdown.</p>
+    </div>
+
+    {% if total_bookings > 0 %}
+    <div class="booking-metrics reveal-up delay-08">
+        <div class="metric-item"><span>Total</span><strong>{{ total_bookings }}</strong></div>
+        <div class="metric-item"><span>Pending</span><strong>{{ bookings_by_status.get('Pending', [])|length }}</strong></div>
+        <div class="metric-item"><span>Approved</span><strong>{{ bookings_by_status.get('Approved', [])|length }}</strong></div>
+        <div class="metric-item"><span>Completed</span><strong>{{ bookings_by_status.get('Completed', [])|length + bookings_by_status.get('Returned', [])|length }}</strong></div>
+    </div>
+    {% endif %}
+
+    {% if total_bookings > 0 %}
+        {% for status, bookings in bookings_by_status.items() %}
+            {% if bookings %}
+            <div class="booking-category reveal-up delay-16">
+                <div class="category-header">
+                    <h3 class="category-title">
+                        {% if status == 'Pending' %}
+                            <i class="fas fa-clock"></i> Pending Bookings
+                        {% elif status == 'Approved' %}
+                            <i class="fas fa-check-circle"></i> Approved Bookings
+                        {% elif status == 'Rejected' %}
+                            <i class="fas fa-times-circle"></i> Rejected Bookings
+                        {% elif status == 'Returned' %}
+                            <i class="fas fa-undo"></i> Returned Bookings
+                        {% elif status == 'Completed' %}
+                            <i class="fas fa-check-double"></i> Completed Bookings
+                        {% else %}
+                            <i class="fas fa-list"></i> {{ status }} Bookings
+                        {% endif %}
+                        <span class="category-count">({{ bookings|length }})</span>
+                    </h3>
+                </div>
+                <div class="bookings-grid">
+                    {% for booking in bookings %}
+                    <article class="booking-card">
+                        <div class="booking-card-header">
+                            <div class="booking-title">
+                                <h3>{{ booking.car.name }}</h3>
+                                <span class="booking-status mybookings-status-{{ booking.status.lower() }}">{{ booking.status }}</span>
+                            </div>
+                            <div class="booking-date">
+                                <i class="fas fa-calendar-alt"></i>
+                                {{ booking.submitted_at.strftime('%B %d, %Y') }}
+                            </div>
+                        </div>
+
+                        <div class="booking-card-body">
+                            <div class="booking-info-grid">
+                                <div class="info-item">
+                                    <i class="fas fa-user"></i>
+                                    <div>
+                                        <strong>{{ booking.name }}</strong>
+                                        <small>{{ booking.email }}</small>
+                                    </div>
+                                </div>
+                                <div class="info-item">
+                                    <i class="fas fa-phone"></i>
+                                    <span>{{ booking.contact }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <i class="fas fa-car"></i>
+                                    {% set display_price = '₱' ~ (booking.car.price|string|replace('₱', '')|replace('PHP', '')|replace('Php', '')|replace('php', '')|trim) %}
+                                    <span>Rate: {{ display_price }} / day</span>
+                                </div>
+                                <div class="info-item">
+                                    <i class="fas fa-calendar-check"></i>
+                                    <span>Pickup: {{ booking.pickup_date.strftime('%b %d, %Y') if booking.pickup_date else '-' }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <i class="fas fa-calendar-times"></i>
+                                    <span>Return: {{ booking.return_date.strftime('%b %d, %Y') if booking.return_date else '-' }}</span>
+                                </div>
+                                <div class="info-item info-total">
+                                    <i class="fas fa-receipt"></i>
+                                    <span>Total: {{ booking.total_cost_display }}</span>
+                                </div>
+                                {% if booking.status == 'Approved' %}
+                                <div class="info-item">
+                                    <i class="fas fa-credit-card"></i>
+                                    <span>Payment: {{ booking.payment_status or 'Unpaid' }}</span>
+                                </div>
+                                {% if booking.payment_method %}
+                                <div class="info-item">
+                                    <i class="fas fa-wallet"></i>
+                                    <span>Method: {{ booking.payment_method }}</span>
+                                </div>
+                                {% endif %}
+                                {% if booking.payment_method in ['GCash', 'Card'] and booking.payment_status != 'Paid' %}
+                                <div class="info-item mybookings-info-note">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span>Online payment is now available because this booking is approved.</span>
+                                </div>
+                                {% elif booking.payment_method == 'Cash' %}
+                                <div class="info-item mybookings-info-note">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span>Cash payment will be collected on pickup.</span>
+                                </div>
+                                {% endif %}
+                                {% endif %}
+                            </div>
+
+                            {% if booking.notes %}
+                            <div class="booking-notes">
+                                <i class="fas fa-sticky-note"></i>
+                                <span>{{ booking.notes }}</span>
+                            </div>
+                            {% endif %}
+
+                            <div class="booking-documents">
+                                {% if booking.id_file %}
+                                <a href="{{ url_for('uploaded_file', filename=booking.id_file) }}" target="_blank" class="doc-link">
+                                    <i class="fas fa-id-card"></i> Valid ID
+                                </a>
+                                {% endif %}
+                                {% if booking.license_file %}
+                                <a href="{{ url_for('uploaded_file', filename=booking.license_file) }}" target="_blank" class="doc-link">
+                                    <i class="fas fa-address-card"></i> Driver's License
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="booking-card-footer">
+                            <div class="booking-actions">
+                                {% if booking.status == 'Pending' %}
+                                    <a href="{{ url_for('edit_booking', booking_id=booking.id) }}" class="mybookings-edit-btn">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </a>
+                                    <form method="POST" action="{{ url_for('delete_booking', booking_id=booking.id) }}" class="delete-form" onsubmit="return confirm('Are you sure you want to cancel this booking?')">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="submit" class="mybookings-delete-btn">
+                                            <i class="fas fa-ban"></i> Cancel
+                                        </button>
+                                    </form>
+                                {% elif booking.status == 'Approved' %}
+                                    {% if booking.payment_status != 'Paid' %}
+                                        {% if booking.payment_method in ['GCash', 'Card'] %}
+                                            <a href="{{ url_for('confirmation', booking_id=booking.id) }}" class="mybookings-pay-btn">
+                                                <i class="fas fa-credit-card"></i> View & Pay
+                                            </a>
+                                        {% elif booking.payment_method == 'Cash' %}
+                                            <span class="mybookings-cash-badge">
+                                                <i class="fas fa-money-bill-wave"></i> Pay on Pickup
+                                            </span>
+                                        {% else %}
+                                            <a href="{{ url_for('confirmation', booking_id=booking.id) }}" class="mybookings-pay-btn">
+                                                <i class="fas fa-wallet"></i> Select Method
+                                            </a>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="mybookings-paid-badge">
+                                            <i class="fas fa-check-circle"></i> Paid
+                                        </span>
+                                    {% endif %}
+                                {% endif %}
+                                {% if booking.status == 'Returned' %}
+                                    <a href="{{ url_for('review', booking_id=booking.id) }}" class="mybookings-rate-btn">
+                                        <i class="fas fa-star"></i> Rate
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        {% endfor %}
+    {% else %}
+        <div class="no-bookings reveal-up">
+            <div class="no-bookings-icon">
+                <i class="fas fa-calendar-times"></i>
+            </div>
+            <h3>No Bookings Yet</h3>
+            <p>You have no reservations yet. Browse the fleet and create your first booking in minutes.</p>
+            <a href="{{ url_for('cars_page') }}" class="btn-mybookings-primary">
+                <i class="fas fa-car"></i> Browse Cars
+            </a>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

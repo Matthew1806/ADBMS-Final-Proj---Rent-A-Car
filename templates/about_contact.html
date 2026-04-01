@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+
+{% block title %}About & Contact - Rent A Car{% endblock %}
+
+{% block content %}
+<section class="about-hero-section reveal-up">
+    <div class="container">
+        <div class="about-hero-grid">
+            <div>
+                <p class="about-tag">About Rent A Car</p>
+                <h1>A Reliable Car Rental Partner Built on Trust and Clarity</h1>
+                <p class="lead">We serve Lipa and Batangas with straightforward booking, transparent pricing, and customer-first support.</p>
+                <div class="about-hero-actions">
+                    <a href="{{ url_for('cars_page') }}" class="about-primary-btn">Explore Fleet</a>
+                    <a href="{{ url_for('book') }}" class="about-secondary-btn">Book Now</a>
+                </div>
+            </div>
+            <aside class="about-highlight-card">
+                <h3>Customer Commitment</h3>
+                <ul>
+                    <li>No hidden pricing or surprise charges</li>
+                    <li>Fair cancellation and modification process</li>
+                    <li>Verified vehicle condition before handover</li>
+                    <li>Support available throughout your rental</li>
+                </ul>
+            </aside>
+        </div>
+    </div>
+</section>
+
+<section class="about-section-block reveal-up delay-08">
+    <div class="container">
+        <div class="about-sections-grid">
+            <article class="about-card">
+                <h3><i class="fas fa-bullseye"></i> Mission</h3>
+                <p>To make vehicle rental simple, dependable, and ethical for every customer, from first-time renters to repeat travelers.</p>
+            </article>
+            <article class="about-card">
+                <h3><i class="fas fa-car-side"></i> Services Offered</h3>
+                <p>Short-term and multi-day rentals, verified vehicle options, and convenient booking management via your online account.</p>
+            </article>
+            <article class="about-card">
+                <h3><i class="fas fa-thumbs-up"></i> Why Choose Us</h3>
+                <p>Well-maintained fleet, clear status tracking, no dark patterns, and booking details presented in plain language.</p>
+            </article>
+            <article class="about-card">
+                <h3><i class="fas fa-handshake"></i> Customer Commitment</h3>
+                <p>We provide transparent rental details, fair policies, and responsive assistance throughout your rental period.</p>
+            </article>
+        </div>
+    </div>
+</section>
+
+<section class="about-policies-section reveal-up delay-16">
+    <div class="container">
+        <h2>Transparency and Ethical Standards</h2>
+        <div class="policy-grid">
+            <div class="policy-item">
+                <h4>Pricing</h4>
+                <p>Daily rates and estimated totals are shown before booking submission.</p>
+            </div>
+            <div class="policy-item">
+                <h4>Booking Changes</h4>
+                <p>Pending bookings can be modified or deleted directly from your account page.</p>
+            </div>
+            <div class="policy-item">
+                <h4>Data and Documents</h4>
+                <p>Personal and document details are collected only for identity and booking verification.</p>
+            </div>
+            <div class="policy-item">
+                <h4>Status Visibility</h4>
+                <p>Each reservation clearly shows status, payment, rental dates, and estimated cost.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="contact-section modern-section reveal-up delay-24">
+    <div class="container contact-layout">
+        <div class="card contact-card">
+            <h3>Contact Information</h3>
+            <div class="info-item"><i class="fas fa-map-marker-alt"></i>
+                <div>
+                    <strong>Address</strong>
+                    <div>Cadena de Amor St, Brgy Munting Pulo - Tangob Rd, Lipa City, 4217 Batangas</div>
+                </div>
+            </div>
+            <div class="info-item"><i class="fas fa-phone"></i>
+                <div>
+                    <strong>Phone</strong>
+                    <div>+63 (994) 784 1968</div>
+                </div>
+            </div>
+            <div class="info-item"><i class="fas fa-envelope"></i>
+                <div>
+                    <strong>Email</strong>
+                    <div>rentacarlipaandbatangas@gmail.com</div>
+                </div>
+            </div>
+            <div class="info-item"><i class="fas fa-clock"></i>
+                <div>
+                    <strong>Hours</strong>
+                    <div>Mon-Fri 8:00-18:00, Sat 9:00-16:00</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="contact-map card">
+            <h3>Our Location</h3>
+            <div class="map-wrap">
+                <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1982514.5490263924!2d119.39512381295148!3d13.952726745921355!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x33bd6d9f3cffacef%3A0x738671947a949758!2sRent%20a%20Car%20Lipa%20and%20Batangas!5e0!3m2!1sen!2sph!4v1763557199532!5m2!1sen!2sph" loading="lazy" title="Rent A Car location map"></iframe>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

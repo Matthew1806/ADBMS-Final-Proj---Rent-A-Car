@@ -1,0 +1,229 @@
+/* ========================================
+   ADMIN USER FORM STYLES
+   ======================================== */
+
+.admin-user-form-card {
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 auto;
+    border: 1px solid #d8e3f3;
+    padding: 20px;
+}
+
+.admin-user-form-toolbar {
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.admin-user-form-toolbar h2 {
+    margin-bottom: 6px;
+}
+
+.admin-user-form-subtitle {
+    margin: 0;
+    color: #5a6f8d;
+    font-size: 0.9rem;
+}
+
+.admin-user-form-grid {
+    display: grid;
+    gap: 14px;
+}
+
+.admin-user-form-section {
+    border: 1px solid #e0e9f6;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    padding: 16px;
+}
+
+.admin-user-form-section h3 {
+    margin: 0 0 12px;
+    font-size: 1rem;
+    color: #203355;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.admin-user-form-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.admin-userform-field {
+    display: grid;
+    gap: 6px;
+}
+
+.admin-userform-field label {
+    font-size: 0.84rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: #294064;
+}
+
+.admin-userform-input {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid #cad9ef;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #203355;
+    font-size: 0.94rem;
+    padding: 11px 12px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.admin-userform-input::placeholder {
+    color: #8ea2bf;
+}
+
+.admin-userform-input:hover {
+    border-color: #b8cbea;
+}
+
+.admin-userform-input:focus {
+    outline: none;
+    border-color: #2a548d;
+    box-shadow: 0 0 0 3px rgba(42, 84, 141, 0.13);
+    background: #fbfdff;
+}
+
+.admin-userform-radio-group {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.admin-userform-radio-card {
+    text-transform: none !important;
+    letter-spacing: normal !important;
+    font-weight: 700 !important;
+    font-size: 0.9rem !important;
+    color: #274166 !important;
+    border: 1px solid #cad9ef;
+    border-radius: 10px;
+    background: #f8fbff;
+    padding: 10px 12px;
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 8px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+    flex: 1;
+    min-width: 250px;
+}
+
+.admin-userform-radio-card:has(.admin-userform-radio-input:checked) {
+    border-color: #3b72b5;
+    background: #eaf2ff;
+    box-shadow: 0 0 0 2px rgba(59, 114, 181, 0.12);
+}
+
+.admin-userform-radio-card.is-admin-role:has(.admin-userform-radio-input:checked) {
+    border-color: #c35a4f;
+    background: #fff2ee;
+    box-shadow: 0 0 0 2px rgba(195, 90, 79, 0.14);
+}
+
+.admin-userform-radio-text-wrap {
+    display: grid;
+    gap: 2px;
+}
+
+.admin-userform-radio-title {
+    font-weight: 800;
+    color: #1f3557;
+}
+
+.admin-userform-radio-desc {
+    font-size: 0.78rem;
+    color: #617a97;
+    line-height: 1.35;
+}
+
+.admin-userform-radio-input {
+    accent-color: #2f64a6;
+    margin-top: 2px;
+}
+
+.admin-userform-note {
+    margin: 6px 0 0;
+    padding: 9px 10px;
+    border: 1px solid #dae6f7;
+    background: #f5f9ff;
+    border-radius: 9px;
+    color: #4f6887;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 7px;
+}
+
+.admin-userform-note i {
+    color: #2f64a6;
+    margin-top: 2px;
+}
+
+.admin-userform-error {
+    color: #b53634;
+    background: #fdeaea;
+    border: 1px solid #f5cccc;
+    border-radius: 8px;
+    padding: 7px 9px;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.admin-userform-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    border-top: 1px solid #dfe8f5;
+    padding-top: 14px;
+}
+
+.admin-userform-submit-btn {
+    min-height: 38px;
+    padding: 8px 14px;
+}
+
+.admin-userform-back-btn {
+    min-height: 38px;
+    padding: 8px 14px;
+}
+
+@media (max-width: 768px) {
+    .admin-user-form-fields {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .admin-user-form-card {
+        padding: 12px;
+    }
+
+    .admin-user-form-section {
+        padding: 12px;
+    }
+
+    .admin-userform-buttons {
+        justify-content: stretch;
+    }
+
+    .admin-userform-submit-btn,
+    .admin-userform-back-btn {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .admin-userform-radio-card {
+        min-width: 0;
+    }
+}
