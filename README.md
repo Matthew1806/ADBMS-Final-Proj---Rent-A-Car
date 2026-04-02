@@ -147,5 +147,5 @@ RentACar_Website/
 - If you plan to use PostgreSQL, update the SQLAlchemy URI and schema workflow accordingly.
 - For production, replace the hardcoded `app.secret_key` with a secure environment variable.
 
-## Author
-- System Developer
+## System Developer
+- Errol Matthew Cudala
