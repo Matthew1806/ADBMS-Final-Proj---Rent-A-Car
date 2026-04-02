@@ -106,8 +106,7 @@ RentACar_Website/
   forms.py
   requirements.txt
   database/
-    mysql_syntax_reference.sql
-    schema_postgresql.sql
+    mysql_syntax.sql
   static/
     css/
     js/
@@ -144,7 +143,6 @@ RentACar_Website/
 
 ## Notes
 - This project is currently configured for MySQL in `app.py`.
-- If you plan to use PostgreSQL, update the SQLAlchemy URI and schema workflow accordingly.
 - For production, replace the hardcoded `app.secret_key` with a secure environment variable.
 
 ## System Developer
