@@ -54,6 +54,24 @@
                 {% endif %}
             </div>
 
+            <!-- Contact Number Field -->
+            <div class="form-group">
+                <label for="contact" class="form-label">
+                    <span class="form-label-text">Contact Number</span>
+                    <span class="form-required">*</span>
+                </label>
+                <div class="form-input-wrapper">
+                    <i class="fas fa-phone"></i>
+                    {{ form.contact(class="form-input", placeholder="09XXXXXXXXX or +63XXXXXXXXXX", id="contact", type="tel", inputmode="numeric", autocomplete="tel") }}
+                </div>
+                {% if form.contact.errors %}
+                    <div class="form-error">
+                        <i class="fas fa-exclamation-circle"></i>
+                        {{ form.contact.errors[0] }}
+                    </div>
+                {% endif %}
+            </div>
+
             <!-- Password Field -->
             <div class="form-group">
                 <label for="password" class="form-label">
@@ -73,13 +91,13 @@
                         {{ form.password.errors[0] }}
                     </div>
                 {% endif %}
-                <div class="password-requirements">
+                <div class="password-requirements{% if form.password.errors %} is-visible{% endif %}">
                     <p class="requirements-title">Password must contain:</p>
                     <ul class="requirements-list">
-                        <li id="req-length"><i class="fas fa-check-circle"></i> At least 8 characters</li>
-                        <li id="req-upper"><i class="fas fa-check-circle"></i> One uppercase letter (A-Z)</li>
-                        <li id="req-lower"><i class="fas fa-check-circle"></i> One lowercase letter (a-z)</li>
-                        <li id="req-number"><i class="fas fa-check-circle"></i> One number (0-9)</li>
+                        <li id="req-length"><i class="fas fa-triangle-exclamation"></i> At least 8 characters</li>
+                        <li id="req-upper"><i class="fas fa-triangle-exclamation"></i> One uppercase letter (A-Z)</li>
+                        <li id="req-lower"><i class="fas fa-triangle-exclamation"></i> One lowercase letter (a-z)</li>
+                        <li id="req-number"><i class="fas fa-triangle-exclamation"></i> One number (0-9)</li>
                     </ul>
                 </div>
             </div>
@@ -169,6 +187,7 @@
 
     // Password requirements validation
     const passwordInput = document.getElementById('password');
+    const requirementsBox = document.querySelector('.password-requirements');
     
     const requirements = {
         length: /^.{8,}$/,
@@ -179,21 +198,26 @@
 
     function updatePasswordRequirements() {
         const password = passwordInput.value;
+        let unmetCount = 0;
         
         for (const [req, regex] of Object.entries(requirements)) {
             const element = document.getElementById(`req-${req}`);
             if (regex.test(password)) {
-                element.classList.add('met');
-                element.querySelector('i').classList.remove('fa-check-circle');
-                element.querySelector('i').classList.add('fa-circle-check');
+                element.classList.remove('unmet');
             } else {
-                element.classList.remove('met');
-                element.querySelector('i').classList.add('fa-check-circle');
-                element.querySelector('i').classList.remove('fa-circle-check');
+                unmetCount += 1;
+                element.classList.add('unmet');
             }
         }
+
+        if (!requirementsBox) return;
+
+        const hasInput = password.length > 0;
+        const shouldShow = hasInput && unmetCount > 0;
+        requirementsBox.classList.toggle('is-visible', shouldShow);
     }
 
     passwordInput.addEventListener('input', updatePasswordRequirements);
+    updatePasswordRequirements();
 </script>
 {% endblock %}

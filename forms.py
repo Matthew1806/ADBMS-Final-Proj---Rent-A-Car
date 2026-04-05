@@ -2,7 +2,7 @@
 # These are the tools we need to make forms that users can fill out.
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, RadioField, TextAreaField, DateField, SelectField, FileField, DateTimeField, IntegerField  # Form field types
-from wtforms.validators import DataRequired, Length, ValidationError, Email, EqualTo, InputRequired  # Rules to check form inputs
+from wtforms.validators import DataRequired, Length, ValidationError, Email, EqualTo, InputRequired, Regexp  # Rules to check form inputs
 
 
 # ---------------- REGISTRATION FORM ----------------
@@ -10,6 +10,11 @@ from wtforms.validators import DataRequired, Length, ValidationError, Email, Equ
 class RegistrationForm(FlaskForm):
     name = StringField('Full Name', validators=[DataRequired(), Length(min=10, max=100)])  # User's full name
     email = StringField('Email Address', validators=[DataRequired(), Email()])  # Email with validation
+    contact = StringField('Contact Number', validators=[
+        DataRequired(),
+        Length(min=11, max=13),
+        Regexp(r'^(\+63|0)\d{10}$', message='Use PH format like 09XXXXXXXXX or +63XXXXXXXXXX.')
+    ])  # User contact number
     password = PasswordField('Password', validators=[DataRequired(), Length(min=6)])  # Password (min 6 chars)
     confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password')])  # Must match password
     submit = SubmitField('Create Account')  # Submit button
@@ -34,7 +39,11 @@ class LoginForm(FlaskForm):
 class BookingForm(FlaskForm):
     name = StringField('Full Name', validators=[DataRequired(), Length(min=10, max=100)])  # Customer name
     email = StringField('Email Address', validators=[DataRequired(), Email()])  # Customer email
-    contact = StringField('Contact Number', validators=[DataRequired(), Length(min=10, max=15)])  # Phone number
+    contact = StringField('Contact Number', validators=[
+        DataRequired(),
+        Length(min=11, max=13),
+        Regexp(r'^(\+63|0)\d{10}$', message='Use PH format like 09XXXXXXXXX or +63XXXXXXXXXX.')
+    ])  # Phone number
     pickup_area = SelectField('Pick-up Area', choices=[('Lipa', 'Lipa'), ('Batangas City', 'Batangas City'), ('Tanauan', 'Tanauan')], validators=[DataRequired()])  # Pick-up area selection
     car = SelectField('Selected Car', coerce=int, validators=[DataRequired()], validate_choice=False)  # Dropdown for car selection
     pickup = DateField('Pick-up Date', validators=[DataRequired()])  # Date picker for pickup

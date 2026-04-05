@@ -41,12 +41,18 @@
                     <strong>{{ booking.pickup_date.strftime('%b %d, %Y') }}</strong>
                     <small>to {{ booking.return_date.strftime('%b %d, %Y') }}</small>
                 </div>
+                {% if booking.pickup_area_display %}
+                <div class="detail-item">
+                    <span class="detail-label">Pick-up Area</span>
+                    <strong>{{ booking.pickup_area_display }}</strong>
+                </div>
+                {% endif %}
             </div>
 
-            {% if booking.notes %}
+            {% if booking.notes_display %}
             <div class="confirmation-note">
                 <i class="fas fa-sticky-note"></i>
-                <span>{{ booking.notes }}</span>
+                <span>{{ booking.notes_display }}</span>
             </div>
             {% endif %}
 

@@ -81,11 +81,20 @@
 
                 <div class="book-field">
                     {{ form.contact.label }}
-                    {{ form.contact(placeholder="09XXXXXXXXX or +63XXXXXXXXXX", class="book-input", id="bookingContact", required=true) }}
+                    {% set contact_prefilled = (form.contact.data or '').strip() %}
+                    {% if contact_prefilled %}
+                        {{ form.contact(placeholder="09XXXXXXXXX or +63XXXXXXXXXX", class="book-input", id="bookingContact", required=true, readonly=true) }}
+                    {% else %}
+                        {{ form.contact(placeholder="09XXXXXXXXX or +63XXXXXXXXXX", class="book-input", id="bookingContact", required=true) }}
+                    {% endif %}
                     {% if form.contact.errors %}
                         <div class="error" role="alert">{{ form.contact.errors[0] }}</div>
                     {% endif %}
-                    <small class="field-hint">For pickup coordination and booking updates</small>
+                    {% if contact_prefilled %}
+                        <small class="field-hint">Auto-filled from your account profile</small>
+                    {% else %}
+                        <small class="field-hint">For pickup coordination and booking updates</small>
+                    {% endif %}
                 </div>
             </div>
             <div class="section-actions">
@@ -118,7 +127,7 @@
                             <option value="">-- Select a car --</option>
                             {% for c in cars %}
                             {%- set num = c.price | replace('₱','') | replace(',','') | replace('/day','') | replace(' per day','') -%}
-                            <option value="{{ c.id }}" data-price="{{ num.strip() }}">{{ c.name }} - {{ c.price }} / day</option>
+                            <option value="{{ c.id }}" data-price="{{ num.strip() }}" {% if form.car.data == c.id %}selected{% endif %}>{{ c.name }} - {{ c.price }} / day</option>
                             {% endfor %}
                         </select>
                         {% if form.car.errors %}
@@ -151,7 +160,6 @@
 
         <fieldset class="book-section reveal-up delay-16" id="payment-section">
             <legend class="section-title">Payment Method</legend>
-            <p class="section-description">How would you like to pay?</p>
             <div class="section-content">
                 <div class="book-field">
                     {{ form.payment_method.label }}
@@ -246,6 +254,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
+const INITIAL_STEP = Number('{{ initial_step | default(1) | int }}');
 let currentStep = 1;
 let isSubmittingForm = false;
 let rentalAvailabilityState = 'unknown';
@@ -254,6 +263,121 @@ let checkCarAvailability = null;
 let pickupPicker = null;
 let returnPicker = null;
 let latestAvailabilityRequestId = 0;
+
+function showStepError(step, message) {
+    const sectionMap = {
+        1: 'personal-section',
+        2: 'rental-section',
+        3: 'payment-section',
+        4: 'confirm-section'
+    };
+
+    const sectionId = sectionMap[step];
+    const section = document.getElementById(sectionId);
+    if (!section) return;
+
+    const sectionContent = section.querySelector('.section-content');
+    if (!sectionContent) return;
+
+    const existingError = section.querySelector('.inline-step-error');
+    if (existingError) {
+        existingError.remove();
+    }
+
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'inline-step-error';
+    errorDiv.style.cssText = `
+        background: rgba(191, 59, 45, 0.1);
+        border: 1.5px solid #bf3b2d;
+        border-radius: 10px;
+        padding: 12px 14px;
+        margin-bottom: 14px;
+        color: #bf3b2d;
+        font-weight: 600;
+    `;
+    errorDiv.innerHTML = `<strong>Please check this step:</strong><br>${message}`;
+
+    sectionContent.insertBefore(errorDiv, sectionContent.firstChild);
+}
+
+function clearStepError(step) {
+    const sectionMap = {
+        1: 'personal-section',
+        2: 'rental-section',
+        3: 'payment-section',
+        4: 'confirm-section'
+    };
+
+    const section = document.getElementById(sectionMap[step]);
+    if (!section) return;
+
+    const existingError = section.querySelector('.inline-step-error');
+    if (existingError) {
+        existingError.remove();
+    }
+}
+
+function formatCurrency(amount) {
+    return `PHP ${Number(amount || 0).toLocaleString('en-PH', { maximumFractionDigits: 0 })}`;
+}
+
+function calculateRentalDays(startDateStr, endDateStr) {
+    if (!startDateStr || !endDateStr) return 0;
+
+    const start = new Date(startDateStr + 'T00:00:00');
+    const end = new Date(endDateStr + 'T00:00:00');
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
+        return 0;
+    }
+
+    const msPerDay = 24 * 60 * 60 * 1000;
+    return Math.floor((end - start) / msPerDay) + 1;
+}
+
+function formatDisplayDate(dateStr) {
+    if (!dateStr) return '';
+    const dateObj = new Date(dateStr + 'T00:00:00');
+    if (Number.isNaN(dateObj.getTime())) return dateStr;
+
+    return dateObj.toLocaleDateString('en-PH', {
+        month: 'short',
+        day: '2-digit',
+        year: 'numeric'
+    });
+}
+
+function updateOrderSummary() {
+    const carField = document.getElementById('car');
+    const pickupField = document.getElementById('pickup');
+    const returnField = document.getElementById('return_date');
+    const summaryCar = document.getElementById('summaryCar');
+    const summaryDates = document.getElementById('summaryDates');
+    const summaryDays = document.getElementById('summaryDays');
+    const totalDisplay = document.getElementById('totalDisplay');
+
+    if (!carField || !pickupField || !returnField || !summaryCar || !summaryDates || !summaryDays || !totalDisplay) {
+        return;
+    }
+
+    const selectedOption = carField.options[carField.selectedIndex];
+    const hasCar = selectedOption && selectedOption.value;
+    const carName = hasCar ? selectedOption.textContent.replace(/\s*\/\s*day\s*$/i, '').trim() : '—';
+
+    const pickupValue = pickupField.value;
+    const returnValue = returnField.value;
+    const days = calculateRentalDays(pickupValue, returnValue);
+
+    const pricePerDay = hasCar ? parseFloat((selectedOption.getAttribute('data-price') || '0').replace(/,/g, '')) || 0 : 0;
+    const total = pricePerDay * days;
+
+    summaryCar.textContent = carName || '—';
+    summaryDates.textContent = pickupValue && returnValue
+        ? `${formatDisplayDate(pickupValue)} to ${formatDisplayDate(returnValue)}`
+        : '—';
+    summaryDays.textContent = String(days);
+    totalDisplay.textContent = formatCurrency(total);
+}
 
 function updatePaymentPolicyNote() {
     const paymentMethodField = document.getElementById('payment_method');
@@ -474,7 +598,9 @@ function validateStep(step) {
     const validation = validateStepRealTime(step);
     
     if (!validation.isValid) {
-        alert('Please fill in all required fields: ' + validation.emptyFields.join(', '));
+        showStepError(step, validation.emptyFields.join(', '));
+    } else {
+        clearStepError(step);
     }
     
     return validation.isValid;
@@ -491,7 +617,7 @@ async function validateStepAsync(step) {
             const available = await checkCarAvailability();
             if (!available) {
                 const message = rentalAvailabilityMessage || 'Selected dates conflict with existing booking.';
-                alert(message);
+                showStepError(2, message);
                 updateNextButtonStatus(2);
                 return false;
             }
@@ -510,11 +636,12 @@ function validateFormSubmission() {
     
     if (validation.isValid) {
         console.log('✓ All step 4 fields valid - allowing form submission');
+        clearStepError(currentStep);
         isSubmittingForm = true;
         return true;
     } else {
         console.log('✗ Validation failed for step 4:', validation.emptyFields);
-        alert('Please fill in all required fields: ' + validation.emptyFields.join(', '));
+        showStepError(currentStep, validation.emptyFields.join(', '));
         isSubmittingForm = false;
         return false;
     }
@@ -799,8 +926,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (pickupDate && returnDate < pickupDate) {
                     console.log('Error: Return date is before pickup date!');
                     this.value = '';
-                    alert('Return date must be on or after the pickup date');
+                    showStepError(2, 'Return date must be on or after the pickup date.');
                 } else if (pickupDate && returnDate) {
+                    clearStepError(2);
                     // Check availability when dates change
                     checkCarAvailability();
                 }
@@ -810,10 +938,14 @@ document.addEventListener('DOMContentLoaded', function() {
             carField.addEventListener('change', function() {
                 console.log('Car selection changed to:', this.value);
                 refreshBookedDatesForSelectedCar();
+                updateOrderSummary();
                 if (pickupDateField.value && returnDateField.value) {
                     checkCarAvailability();
                 }
             });
+
+            pickupDateField.addEventListener('change', updateOrderSummary);
+            returnDateField.addEventListener('change', updateOrderSummary);
             
             // Set initial minimum
             if (pickupDateField.value) {
@@ -822,7 +954,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
 
-            refreshBookedDatesForSelectedCar();
+            refreshBookedDatesForSelectedCar().then(() => {
+                // If rental fields are prefilled (e.g., from Quick Actions), run availability check immediately.
+                if (carField.value && pickupDateField.value && returnDateField.value) {
+                    checkCarAvailability();
+                } else {
+                    updateNextButtonStatus(2);
+                }
+                updateOrderSummary();
+            });
         }
         
         // Add real-time validation to all input fields
@@ -882,9 +1022,11 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
         
-        // Initialize first step
-        showStep(1);
-        console.log('Step 1 initialized - should be visible');
+        // Initialize current step (supports quick actions deep-link to rental step)
+        currentStep = Math.max(1, Math.min(4, INITIAL_STEP));
+        showStep(currentStep);
+        updateOrderSummary();
+        console.log('Step initialized:', currentStep);
         
         // Initialize button states for all steps
         for (let step = 1; step <= 3; step++) {

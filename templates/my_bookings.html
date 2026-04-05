@@ -80,6 +80,12 @@
                                     <i class="fas fa-calendar-times"></i>
                                     <span>Return: {{ booking.return_date.strftime('%b %d, %Y') if booking.return_date else '-' }}</span>
                                 </div>
+                                {% if booking.pickup_area_display %}
+                                <div class="info-item">
+                                    <i class="fas fa-location-dot"></i>
+                                    <span>Pick-up Area: {{ booking.pickup_area_display }}</span>
+                                </div>
+                                {% endif %}
                                 <div class="info-item info-total">
                                     <i class="fas fa-receipt"></i>
                                     <span>Total: {{ booking.total_cost_display }}</span>
@@ -109,10 +115,10 @@
                                 {% endif %}
                             </div>
 
-                            {% if booking.notes %}
+                            {% if booking.notes_display %}
                             <div class="booking-notes">
                                 <i class="fas fa-sticky-note"></i>
-                                <span>{{ booking.notes }}</span>
+                                <span>{{ booking.notes_display }}</span>
                             </div>
                             {% endif %}
 

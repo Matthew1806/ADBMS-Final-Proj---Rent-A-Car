@@ -7,6 +7,7 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 import os
 from datetime import datetime, timedelta, date
 from collections import Counter
+from sqlalchemy import inspect, text
 from models import db, Car, User, Booking, Review, Payment
 from forms import RegistrationForm, LoginForm, BookingForm, ReviewForm, CarForm, UserForm
 import re
@@ -89,6 +90,61 @@ def renumber_table_ids(table_class):
         db.session.rollback()
         print(f"Error renumbering {table_class.__name__} IDs: {str(e)}")
 
+def ensure_user_contact_column():
+    """Add user.contact column for older databases that were created before this field existed."""
+    inspector = inspect(db.engine)
+    if not inspector.has_table('user'):
+        return
+
+    column_names = {column['name'] for column in inspector.get_columns('user')}
+    if 'contact' not in column_names:
+        db.session.execute(text("ALTER TABLE `user` ADD COLUMN contact VARCHAR(20) NULL AFTER email"))
+        db.session.commit()
+
+def ensure_booking_pickup_area_column():
+    """Add booking.pickup_area column for older databases that were created before this field existed."""
+    inspector = inspect(db.engine)
+    if not inspector.has_table('booking'):
+        return
+
+    column_names = {column['name'] for column in inspector.get_columns('booking')}
+    if 'pickup_area' not in column_names:
+        db.session.execute(text("ALTER TABLE booking ADD COLUMN pickup_area VARCHAR(100) NULL AFTER contact"))
+        db.session.commit()
+
+def split_legacy_pickup_area(notes_text):
+    """Split legacy merged notes that start with 'Pick-up Area: ...' into (pickup_area, notes)."""
+    raw_notes = (notes_text or '').strip()
+    if not raw_notes:
+        return '', ''
+
+    lines = [line.strip() for line in raw_notes.splitlines() if line.strip()]
+    if not lines:
+        return '', ''
+
+    match = re.match(r'^Pick[- ]?up Area:\s*(.+)$', lines[0], flags=re.IGNORECASE)
+    if not match:
+        return '', raw_notes
+
+    pickup_area = match.group(1).strip()
+    clean_notes = '\n'.join(lines[1:]).strip()
+    return pickup_area, clean_notes
+
+def get_booking_display_pickup_area_and_notes(booking):
+    """Return pickup area and notes as separate display values, supporting legacy merged notes."""
+    pickup_area = (getattr(booking, 'pickup_area', None) or '').strip()
+    notes_text = (booking.notes or '').strip()
+
+    if pickup_area:
+        return pickup_area, notes_text
+
+    legacy_area, clean_notes = split_legacy_pickup_area(notes_text)
+    return legacy_area, clean_notes
+
+with app.app_context():
+    ensure_user_contact_column()
+    ensure_booking_pickup_area_column()
+
 # Public Routes
 @app.route('/')
 def home():
@@ -103,6 +159,7 @@ def home():
         car.review_count = review_count
 
     latest_reviews = Review.query.order_by(Review.created_at.desc()).limit(3).all()
+    quick_action_cars = Car.query.order_by(Car.name.asc()).all()
     testimonial_cards = []
     for review in latest_reviews:
         user = User.query.get(review.user_id)
@@ -118,7 +175,8 @@ def home():
     return render_template(
         'index.html',
         featured_cars=featured_cars,
-        testimonial_cards=testimonial_cards
+        testimonial_cards=testimonial_cards,
+        quick_action_cars=quick_action_cars
     )
 
 @app.route('/cars')
@@ -340,7 +398,12 @@ def register():
     
     if form.validate_on_submit():
         hashed_password = generate_password_hash(form.password.data, method='pbkdf2:sha256')
-        new_user = User(name=form.name.data, email=form.email.data, password=hashed_password)
+        new_user = User(
+            name=form.name.data,
+            email=form.email.data,
+            contact=(form.contact.data or '').strip(),
+            password=hashed_password
+        )
         db.session.add(new_user)
         db.session.commit()
         flash('Account created successfully! Please log in.', 'success')
@@ -363,11 +426,18 @@ def book():
     """Handle car booking form - requires user login."""
     form = BookingForm()
     cars = Car.query.all()
+    initial_step = 1
 
     if request.method == 'GET':
         pickup_city_arg = (request.args.get('pickup_city') or '').strip()
         pickup_date_arg = (request.args.get('pickup_date') or '').strip()
         return_date_arg = (request.args.get('return_date') or '').strip()
+        start_step_arg = (request.args.get('start_step') or '').strip()
+        selected_car_arg = (request.args.get('car_id') or '').strip()
+        selected_car_id = int(selected_car_arg) if selected_car_arg.isdigit() else None
+
+        if start_step_arg.isdigit():
+            initial_step = max(1, min(4, int(start_step_arg)))
 
         valid_pickup_areas = {'Lipa', 'Batangas City', 'Tanauan'}
         if pickup_city_arg in valid_pickup_areas:
@@ -393,14 +463,25 @@ def book():
                     if cars:
                         flash(f'{len(cars)} car(s) available for your selected dates.', 'success')
                     else:
-                        flash('No available cars for those dates. Please choose other dates.', 'warning')
-                        return redirect(url_for('home'))
+                        flash('No available cars on selected days. Please choose other dates.', 'warning')
 
                 form.pickup.data = pickup_date
                 form.return_date.data = return_date
+                initial_step = max(initial_step, 2)
             except ValueError:
                 cars = []
                 flash('Invalid date format. Please select your dates again.', 'warning')
+                initial_step = max(initial_step, 2)
+
+        if selected_car_id:
+            visible_car_ids = {car.id for car in cars}
+            if selected_car_id in visible_car_ids:
+                form.car.data = selected_car_id
+            elif pickup_date_arg and return_date_arg:
+                selected_car = Car.query.get(selected_car_id)
+                selected_car_name = selected_car.name if selected_car else 'Selected car'
+                flash(f'{selected_car_name} is not available on selected days. Please choose another car or dates.', 'warning')
+                initial_step = max(initial_step, 2)
 
     form.car.choices = [(car.id, f"{car.name} - {car.price}") for car in cars]
     today = date.today()
@@ -408,6 +489,7 @@ def book():
     if request.method == 'GET':
         form.name.data = current_user.name or ''
         form.email.data = current_user.email or ''
+        form.contact.data = (current_user.contact or '').strip() if getattr(current_user, 'contact', None) else ''
     
     if form.validate_on_submit():
         # Check for date conflicts with approved, returned, or completed bookings
@@ -456,11 +538,6 @@ def book():
             form.license_file.data.save(os.path.join(app.config['UPLOAD_FOLDER'], license_filename))
 
         notes_value = (form.notes.data or '').strip()
-        area_line = f"Pick-up Area: {pickup_area}" if pickup_area else ''
-        if area_line and notes_value:
-            notes_value = f"{area_line}\n{notes_value}"
-        elif area_line:
-            notes_value = area_line
         
         # Create booking
         booking = Booking(
@@ -468,6 +545,7 @@ def book():
             name=form.name.data,
             email=form.email.data,
             contact=form.contact.data,
+            pickup_area=pickup_area if pickup_area else None,
             car_id=form.car.data,
             pickup_date=form.pickup.data,
             return_date=form.return_date.data,
@@ -477,6 +555,12 @@ def book():
             payment_method=payment_method_pref if payment_method_pref else None,
             payment_status='Unpaid'
         )
+
+        # Keep the user's profile contact synced for future auto-fill on booking.
+        profile_contact = (current_user.contact or '').strip() if getattr(current_user, 'contact', None) else ''
+        submitted_contact = (form.contact.data or '').strip()
+        if submitted_contact and submitted_contact != profile_contact:
+            current_user.contact = submitted_contact
         
         db.session.add(booking)
         db.session.commit()
@@ -484,7 +568,7 @@ def book():
         flash('Your booking has been submitted successfully! Please wait for admin approval.', 'success')
         return redirect(url_for('my_bookings'))
     
-    return render_template('book.html', form=form, cars=cars, today=today)
+    return render_template('book.html', form=form, cars=cars, today=today, initial_step=initial_step)
 
 @app.route('/confirmation/<int:booking_id>')
 @login_required
@@ -536,6 +620,9 @@ def confirmation(booking_id):
     
     total = round(price_per_day * days, 2)
     total_display = format_peso(total)
+    pickup_area_display, notes_display = get_booking_display_pickup_area_and_notes(booking)
+    booking.pickup_area_display = pickup_area_display
+    booking.notes_display = notes_display
     
     return render_template('confirmation.html', booking=booking, car=car, total_display=total_display, total_amount=total)
 
@@ -629,6 +716,9 @@ def my_bookings():
             unit_price = parse_price(booking.car.price if booking.car else '')
             booking.total_cost = round(unit_price * rental_days, 2)
             booking.total_cost_display = format_peso(booking.total_cost)
+            pickup_area_display, notes_display = get_booking_display_pickup_area_and_notes(booking)
+            booking.pickup_area_display = pickup_area_display
+            booking.notes_display = notes_display
         
         # Organize bookings by status
         bookings_by_status = {
@@ -687,6 +777,9 @@ def edit_booking(booking_id):
         flash('Booking updated successfully!', 'success')
         return redirect(url_for('my_bookings'))
     
+    pickup_area_display, notes_display = get_booking_display_pickup_area_and_notes(booking)
+    booking.pickup_area_display = pickup_area_display
+    booking.notes_display = notes_display
     return render_template('edit_booking.html', booking=booking)
 
 @app.route('/bookings/<int:booking_id>/delete', methods=['POST'])
@@ -811,6 +904,9 @@ def admin_booking_details(booking_id):
     booking = Booking.query.get_or_404(booking_id)
     car = Car.query.get(booking.car_id)
     user = User.query.get(booking.user_id)
+    pickup_area_display, notes_display = get_booking_display_pickup_area_and_notes(booking)
+    booking.pickup_area_display = pickup_area_display
+    booking.notes_display = notes_display
     
     return render_template('admin_booking_details.html', booking=booking, car=car, user=user)
 

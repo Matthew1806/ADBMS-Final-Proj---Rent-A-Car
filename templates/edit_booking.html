@@ -26,7 +26,7 @@
             </div>
             <div class="editbooking-form-field">
                 <label for="notes">Notes</label>
-                <textarea id="notes" name="notes" rows="4">{{ booking.notes or '' }}</textarea>
+                <textarea id="notes" name="notes" rows="4">{{ booking.notes_display or booking.notes or '' }}</textarea>
             </div>
             <div class="editbooking-actions-container">
                 <button type="submit" class="editbooking-update-button">Update Booking</button>

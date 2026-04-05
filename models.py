@@ -31,6 +31,7 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)  # Unique user ID
     name = db.Column(db.String(100), nullable=False)  # Full name
     email = db.Column(db.String(100), unique=True, nullable=False)  # Email address (must be unique)
+    contact = db.Column(db.String(20), nullable=True)  # Customer contact number
     password = db.Column(db.String(200), nullable=False)  # Hashed password
     is_admin = db.Column(db.Boolean, default=False)  # Is this user an admin?
     created_at = db.Column(db.DateTime, default=datetime.utcnow)  # Account creation date
@@ -44,6 +45,7 @@ class Booking(db.Model):
     name = db.Column(db.String(100), nullable=False)  # Customer name
     email = db.Column(db.String(100), nullable=False)  # Customer email
     contact = db.Column(db.String(20), nullable=False)  # Phone number
+    pickup_area = db.Column(db.String(100), nullable=True)  # Pick-up area selected by customer
     car_id = db.Column(db.Integer, db.ForeignKey('car.id'), nullable=False)  # Which car was booked
     pickup_date = db.Column(db.Date, nullable=False)  # When to pick up
     return_date = db.Column(db.Date, nullable=False)  # When to return

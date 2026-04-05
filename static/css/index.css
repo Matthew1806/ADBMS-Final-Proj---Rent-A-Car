@@ -20,7 +20,7 @@
     border-radius: 22px;
     margin: 14px auto 0;
     max-width: 1280px;
-    padding: 50px 26px;
+    padding: 38px 22px;
     color: #eef4ff;
 }
 
@@ -32,7 +32,7 @@
 .hero-content {
     display: grid;
     grid-template-columns: 1.2fr 1fr;
-    gap: 28px;
+    gap: 22px;
     align-items: stretch;
 }
 
@@ -48,26 +48,26 @@
 }
 
 .hero-title {
-    font-size: clamp(2rem, 4vw, 3.1rem);
+    font-size: clamp(1.9rem, 3.5vw, 2.85rem);
     line-height: 1.08;
-    margin-bottom: 14px;
+    margin-bottom: 10px;
     font-weight: 800;
     max-width: 650px;
 }
 
 .hero-description {
     color: #bfd1ec;
-    font-size: 1rem;
+    font-size: 0.96rem;
     max-width: 620px;
-    line-height: 1.7;
-    margin-bottom: 22px;
+    line-height: 1.58;
+    margin-bottom: 16px;
 }
 
 .index-hero-buttons-container {
     display: flex;
     gap: 12px;
     flex-wrap: wrap;
-    margin-bottom: 20px;
+    margin-bottom: 14px;
 }
 
 .index-hero-browse-button,
@@ -107,7 +107,7 @@
     margin: 0;
     padding: 0;
     display: grid;
-    gap: 8px;
+    gap: 6px;
 }
 
 .index-hero-featurelist li {
@@ -140,7 +140,7 @@
     position: relative;
     z-index: 1;
     border-radius: 23px;
-    padding: 18px 18px 12px;
+    padding: 14px 14px 10px;
     border: 1px solid rgba(236, 244, 255, 0.2);
     background:
         linear-gradient(160deg, rgba(12, 28, 54, 0.72), rgba(8, 20, 39, 0.63)),
@@ -149,18 +149,18 @@
     backdrop-filter: blur(16px);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 -1px 0 rgba(172, 198, 236, 0.1);
     display: grid;
-    gap: 10px;
+    gap: 8px;
     animation: quickPanelLift 0.75s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .quick-actions-header {
     display: grid;
-    gap: 4px;
+    gap: 2px;
 }
 
 .quick-actions-kicker {
     margin: 0;
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: #f7be8b;
@@ -169,52 +169,52 @@
 
 .quick-actions-header h2 {
     margin: 0;
-    font-size: 1.42rem;
+    font-size: 1.2rem;
     letter-spacing: 0.01em;
 }
 
 .quick-actions-header p {
     margin: 0;
     color: #c7d7f1;
-    font-size: 0.9rem;
+    font-size: 0.82rem;
 }
 
 .quick-actions-form {
     display: grid;
-    gap: 9px;
+    gap: 7px;
 }
 
 .quick-actions-group {
     background: rgba(9, 22, 42, 0.4);
     border: 1px solid rgba(213, 227, 251, 0.16);
-    border-radius: 15px;
-    padding: 11px;
+    border-radius: 13px;
+    padding: 9px;
     display: grid;
-    gap: 10px;
+    gap: 8px;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .quick-actions-group-head {
     display: flex;
     align-items: center;
-    gap: 9px;
+    gap: 8px;
 }
 
 .quick-actions-group-icon {
-    width: 28px;
-    height: 28px;
-    border-radius: 9px;
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     background: rgba(247, 190, 139, 0.15);
     color: #ffcca0;
-    font-size: 0.84rem;
+    font-size: 0.76rem;
 }
 
 .quick-actions-group h3 {
     margin: 0;
-    font-size: 0.9rem;
+    font-size: 0.84rem;
     color: #eaf1ff;
 }
 
@@ -224,10 +224,10 @@
 
 .quick-input-icon {
     position: absolute;
-    left: 14px;
+    left: 12px;
     top: 50%;
     transform: translateY(-50%);
-    font-size: 0.84rem;
+    font-size: 0.78rem;
     color: #f7be8b;
     pointer-events: none;
     transition: color 0.2s ease;
@@ -237,13 +237,13 @@
 .quick-input-field select {
     width: 100%;
     box-sizing: border-box;
-    border-radius: 12px;
+    border-radius: 10px;
     border: 1px solid rgba(218, 230, 250, 0.28);
     background: rgba(4, 14, 30, 0.48);
     color: #f2f7ff;
     font-family: 'Manrope', sans-serif;
-    font-size: 0.9rem;
-    padding: 19px 14px 9px 40px;
+    font-size: 0.84rem;
+    padding: 16px 12px 8px 36px;
     outline: none;
     transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
 }
@@ -252,7 +252,7 @@
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
-    padding-right: 32px;
+    padding-right: 28px;
 }
 
 .quick-input-field input:hover,
@@ -279,10 +279,10 @@
 
 .quick-input-field label {
     position: absolute;
-    left: 40px;
+    left: 36px;
     top: 50%;
     transform: translateY(-50%);
-    font-size: 0.84rem;
+    font-size: 0.78rem;
     color: #b6c8e7;
     pointer-events: none;
     transition: transform 0.2s ease, top 0.2s ease, color 0.2s ease, font-size 0.2s ease;
@@ -292,16 +292,16 @@
 .quick-input-field input:valid + label,
 .quick-input-field select:focus + label,
 .quick-input-field select:valid + label {
-    top: 10px;
+    top: 8px;
     transform: translateY(0);
-    font-size: 0.68rem;
+    font-size: 0.63rem;
     color: #f7be8b;
 }
 
 .hero-booking-row.quick-actions-dates {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+    gap: 9px;
     align-items: stretch;
 }
 
@@ -310,15 +310,15 @@
 }
 
 .quick-date-field input {
-    min-height: 66px;
-    padding: 26px 14px 10px 42px;
+    min-height: 56px;
+    padding: 20px 12px 8px 38px;
     box-shadow: inset 0 0 0 1px rgba(201, 219, 245, 0.06), inset 0 10px 16px rgba(3, 11, 24, 0.22);
 }
 
 .quick-date-field label {
-    top: 10px;
+    top: 8px;
     transform: translateY(0);
-    font-size: 0.68rem;
+    font-size: 0.63rem;
     color: #f7be8b;
 }
 
@@ -331,7 +331,7 @@
 }
 
 .quick-date-field .quick-input-icon {
-    top: 31px;
+    top: 28px;
     transform: translateY(-50%);
 }
 
@@ -346,11 +346,11 @@
 .quick-actions-submit {
     width: 100%;
     border: 1px solid rgba(255, 225, 206, 0.72);
-    border-radius: 12px;
-    padding: 12px 14px;
+    border-radius: 10px;
+    padding: 10px 12px;
     background: linear-gradient(120deg, var(--index-accent), #e07b5e);
     color: #fff;
-    font-size: 0.9rem;
+    font-size: 0.86rem;
     font-weight: 700;
     font-family: 'Manrope', sans-serif;
     display: inline-flex;
@@ -383,7 +383,7 @@
     justify-content: flex-end;
     gap: 10px;
     flex-wrap: wrap;
-    margin-top: 4px;
+    margin-top: 2px;
 }
 
 .quick-actions-trust {

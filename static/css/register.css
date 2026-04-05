@@ -230,17 +230,22 @@
 }
 
 .password-requirements {
-    background: #f0f2ff;
-    border: 1px solid #dde4f0;
+    display: none;
+    background: rgba(127, 29, 29, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.35);
     border-radius: 10px;
     padding: 12px 14px;
     margin-top: 4px;
 }
 
+.password-requirements.is-visible {
+    display: block;
+}
+
 .requirements-title {
     font-size: 12px;
     font-weight: 700;
-    color: #1f3258;
+    color: #fecaca;
     margin: 0 0 8px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -257,26 +262,21 @@
 
 .requirements-list li {
     font-size: 13px;
-    color: #607087;
+    color: #fca5a5;
     display: flex;
     align-items: center;
     gap: 8px;
-    font-weight: 500;
+    font-weight: 600;
+    display: none;
 }
 
 .requirements-list i {
     font-size: 12px;
-    color: #cbd5e1;
+    color: #ef4444;
 }
 
-.requirements-list li.met,
-.requirements-list li.valid {
-    color: #22c55e;
-}
-
-.requirements-list li.met i,
-.requirements-list li.valid i {
-    color: #22c55e;
+.requirements-list li.unmet {
+    display: flex;
 }
 
 .checkbox-group {

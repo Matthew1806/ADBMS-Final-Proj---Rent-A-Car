@@ -3,6 +3,7 @@
 {% block title %}Home - Rent A Car{% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <section class="hero-section">
     <div class="hero-wrapper">
         <div class="hero-content">
@@ -39,6 +40,7 @@
                     </header>
 
                     <form action="{{ url_for('book') }}" method="get" class="hero-booking-form quick-actions-form" id="quick-actions-form" aria-label="Quick actions booking panel">
+                        <input type="hidden" name="start_step" value="2">
                         <section class="quick-actions-group" aria-labelledby="qa-location-title">
                             <div class="quick-actions-group-head">
                                 <span class="quick-actions-group-icon"><i class="fas fa-location-dot"></i></span>
@@ -57,6 +59,24 @@
                             </div>
                         </section>
 
+                        <section class="quick-actions-group" aria-labelledby="qa-vehicle-title">
+                            <div class="quick-actions-group-head">
+                                <span class="quick-actions-group-icon"><i class="fas fa-car-side"></i></span>
+                                <h3 id="qa-vehicle-title">Vehicle</h3>
+                            </div>
+
+                            <div class="quick-input-field">
+                                <i class="fas fa-car quick-input-icon" aria-hidden="true"></i>
+                                <select id="quick-car" name="car_id" required>
+                                    <option value="" selected disabled></option>
+                                    {% for c in quick_action_cars %}
+                                    <option value="{{ c.id }}">{{ c.name }} - {{ c.price }}</option>
+                                    {% endfor %}
+                                </select>
+                                <label for="quick-car">Selected Car</label>
+                            </div>
+                        </section>
+
                         <section class="quick-actions-group" aria-labelledby="qa-dates-title">
                             <div class="quick-actions-group-head">
                                 <span class="quick-actions-group-icon"><i class="fas fa-calendar-days"></i></span>
@@ -66,12 +86,12 @@
                             <div class="hero-booking-row quick-actions-dates">
                                 <div class="quick-input-field quick-date-field">
                                     <i class="fas fa-calendar-plus quick-input-icon" aria-hidden="true"></i>
-                                    <input id="pickup-date" type="date" name="pickup_date" placeholder=" " required>
+                                    <input id="pickup-date" type="text" name="pickup_date" placeholder=" " required autocomplete="off">
                                     <label for="pickup-date">Pick-up Date</label>
                                 </div>
                                 <div class="quick-input-field quick-date-field">
                                     <i class="fas fa-calendar-check quick-input-icon" aria-hidden="true"></i>
-                                    <input id="return-date" type="date" name="return_date" placeholder=" " required>
+                                    <input id="return-date" type="text" name="return_date" placeholder=" " required autocomplete="off">
                                     <label for="return-date">Return Date</label>
                                 </div>
                             </div>
@@ -249,32 +269,108 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    const quickForm = document.getElementById('quick-actions-form');
+    const carField = document.getElementById('quick-car');
     const pickupDate = document.getElementById('pickup-date');
     const returnDate = document.getElementById('return-date');
+    let pickupPicker = null;
+    let returnPicker = null;
+    let latestRequestId = 0;
 
-    if (!pickupDate || !returnDate) {
+    if (!quickForm || !pickupDate || !returnDate || !carField) {
         return;
     }
 
-    const today = new Date().toISOString().split('T')[0];
-    pickupDate.min = today;
-    returnDate.min = today;
+    function normalizeBookedRanges(ranges) {
+        if (!Array.isArray(ranges)) return [];
+        return ranges
+            .filter(range => range && range.from && range.to)
+            .map(range => ({ from: range.from, to: range.to }));
+    }
 
-    const syncReturnDate = function () {
-        if (!pickupDate.value) {
-            returnDate.min = today;
+    async function fetchBookedRanges(carId) {
+        if (!carId) return [];
+        try {
+            const response = await fetch(`/api/car/${carId}/booked`);
+            if (!response.ok) return [];
+            const data = await response.json();
+            return normalizeBookedRanges(data.booked_ranges || []);
+        } catch (error) {
+            console.error('Failed to load booked ranges:', error);
+            return [];
+        }
+    }
+
+    function applyDisabledDates(ranges) {
+        if (!pickupPicker || !returnPicker) return;
+
+        pickupPicker.set('disable', ranges);
+        returnPicker.set('disable', ranges);
+
+        if (pickupPicker.selectedDates.length > 0 && !pickupPicker.isEnabled(pickupPicker.selectedDates[0])) {
+            pickupPicker.clear();
+        }
+
+        if (returnPicker.selectedDates.length > 0 && !returnPicker.isEnabled(returnPicker.selectedDates[0])) {
+            returnPicker.clear();
+        }
+    }
+
+    async function refreshAvailabilityForCar() {
+        const selectedCar = carField.value;
+        const requestId = ++latestRequestId;
+        const ranges = await fetchBookedRanges(selectedCar);
+        if (requestId !== latestRequestId) return;
+        applyDisabledDates(ranges);
+    }
+
+    pickupPicker = flatpickr(pickupDate, {
+        dateFormat: 'Y-m-d',
+        minDate: 'today',
+        disableMobile: true,
+        onChange: function(selectedDates, dateStr) {
+            if (!returnPicker) return;
+
+            if (!dateStr) {
+                returnPicker.set('minDate', 'today');
+                return;
+            }
+
+            returnPicker.set('minDate', dateStr);
+            if (returnPicker.selectedDates.length > 0 && returnPicker.selectedDates[0] < selectedDates[0]) {
+                returnPicker.clear();
+            }
+        }
+    });
+
+    returnPicker = flatpickr(returnDate, {
+        dateFormat: 'Y-m-d',
+        minDate: 'today',
+        disableMobile: true
+    });
+
+    quickForm.addEventListener('submit', function(event) {
+        const selectedCar = carField.value;
+        const pickupValue = pickupDate.value;
+        const returnValue = returnDate.value;
+
+        if (!selectedCar || !pickupValue || !returnValue) {
+            event.preventDefault();
+            alert('Please select car and valid pickup/return dates.');
             return;
         }
-        returnDate.min = pickupDate.value;
-        if (returnDate.value && returnDate.value < pickupDate.value) {
-            returnDate.value = pickupDate.value;
-        }
-    };
 
-    pickupDate.addEventListener('change', syncReturnDate);
-    syncReturnDate();
+        if (returnValue < pickupValue) {
+            event.preventDefault();
+            alert('Return date must be on or after pickup date.');
+        }
+    });
+
+    carField.addEventListener('change', refreshAvailabilityForCar);
+    refreshAvailabilityForCar();
 });
 </script>
 {% endblock %}

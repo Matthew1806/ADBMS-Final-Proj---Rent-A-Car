@@ -18,7 +18,8 @@
                 <tr><th>Specs</th><td>{{ car.transmission }} | {{ car.fuel }} | {{ car.capacity }}</td></tr>
                 <tr><th>Pickup Date</th><td>{{ booking.pickup_date.strftime('%B %d, %Y') }}</td></tr>
                 <tr><th>Return Date</th><td>{{ booking.return_date.strftime('%B %d, %Y') }}</td></tr>
-                {% if booking.notes %}<tr><th>Notes</th><td>{{ booking.notes }}</td></tr>{% endif %}
+                {% if booking.pickup_area_display %}<tr><th>Pick-up Area</th><td>{{ booking.pickup_area_display }}</td></tr>{% endif %}
+                {% if booking.notes_display %}<tr><th>Notes</th><td>{{ booking.notes_display }}</td></tr>{% endif %}
                 {% if booking.payment_method %}<tr><th>Payment Method</th><td>{{ booking.payment_method }}</td></tr>{% endif %}
                 {% if booking.payment_status %}<tr><th>Payment Status</th><td>{{ booking.payment_status }}</td></tr>{% endif %}
             </tbody>

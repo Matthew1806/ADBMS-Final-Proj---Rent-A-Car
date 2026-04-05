@@ -5,6 +5,7 @@ CREATE TABLE `user` (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
   email VARCHAR(100) UNIQUE NOT NULL,
+  contact VARCHAR(20),
   password VARCHAR(200) NOT NULL,
   is_admin BOOLEAN DEFAULT FALSE,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -36,6 +37,7 @@ CREATE TABLE booking (
   name VARCHAR(100) NOT NULL,
   email VARCHAR(100) NOT NULL,
   contact VARCHAR(20) NOT NULL,
+  pickup_area VARCHAR(100),
   car_id INT NOT NULL,
   pickup_date DATE NOT NULL,
   return_date DATE NOT NULL,
