@@ -47,8 +47,8 @@
     {% endif %}
     <form method="POST" action="{{ url_for('admin_update_booking_status', booking_id=booking.id) }}" id="status-form" class="admin-action-group">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-        <label for="status" style="font-weight:700; color:#1f3258;">New Status</label>
-        <select name="status" id="status" class="book-input" style="max-width:220px;" {% if booking.status in ['Rejected', 'Completed'] %}disabled{% endif %}>
+        <label for="status" class="admin-status-label">New Status</label>
+        <select name="status" id="status" class="book-input admin-status-select" {% if booking.status in ['Rejected', 'Completed'] %}disabled{% endif %}>
             <option value="Pending" {% if booking.status == 'Pending' %}selected{% endif %}>Pending</option>
             <option value="Approved" {% if booking.status == 'Approved' %}selected{% endif %}>Approved</option>
             <option value="Rejected" {% if booking.status == 'Rejected' %}selected{% endif %}>Rejected</option>
@@ -63,7 +63,7 @@
 const statusSelect = document.getElementById('status');
 const statusForm = document.getElementById('status-form');
 const currentStatus = '{{ booking.status }}';
-const hasPayment = {{ 'true' if booking.payment_method else 'false' }};
+const hasPayment = "{{ 'true' if booking.payment_method else 'false' }}" === 'true';
 
 function updateStatusOptions() {
     if (!statusSelect) return;

@@ -46,7 +46,7 @@
 .auth-card-register {
     width: 100%;
     max-width: 480px;
-    background: #ffffff;
+    background: radial-gradient(circle at top right, #1d2f4f, #0f1626 100%);
     border-radius: 20px;
     box-shadow: 0 20px 60px rgba(15, 22, 38, 0.12), 0 4px 12px rgba(15, 22, 38, 0.06);
     padding: 48px 40px;
@@ -90,7 +90,7 @@
 .auth-title {
     font-size: 30px;
     font-weight: 800;
-    color: #1f3258;
+    color: #e2e6ed;
     margin: 0 0 10px;
     letter-spacing: -0.8px;
     line-height: 1.2;
@@ -98,7 +98,7 @@
 
 .auth-subtitle {
     font-size: 15px;
-    color: #607087;
+    color: #8b99ac;
     margin: 0;
     line-height: 1.7;
     font-weight: 500;
@@ -122,7 +122,7 @@
     gap: 4px;
     font-weight: 700;
     font-size: 14px;
-    color: #1f3258;
+    color: #e2e6ed;
 }
 
 .form-required {
