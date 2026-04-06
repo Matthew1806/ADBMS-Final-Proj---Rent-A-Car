@@ -8,7 +8,16 @@ Flask-based car rental system with customer booking flows, review support, and a
 - Browse available cars
 - View car details and reviews
 - View about page
-- Register and log in
+- Register with email and password
+- Login only after email verification
+
+### Authentication & Security
+- Email/password authentication using Flask-Login
+- Verification link sent by email after registration
+- Unverified users cannot login
+- Resend verification link option on login page
+- Protected dashboard, booking, and profile routes
+- Owner/admin protection for uploaded ID/license files
 
 ### Customer
 - Multi-step booking form with date conflict checking
@@ -56,9 +65,21 @@ pip install -r requirements.txt
 CREATE DATABASE car_rental;
 ```
 
-4. Configure DB connection in `app.py` if your MySQL credentials differ.
-```python
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:@localhost:3306/car_rental'
+4. Create a `.env` file with runtime configuration.
+```env
+SECRET_KEY=replace-with-strong-secret
+DATABASE_URL=mysql+pymysql://root:@localhost:3306/car_rental
+
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USE_TLS=true
+MAIL_USERNAME=your_email@gmail.com
+MAIL_PASSWORD=your_app_password
+MAIL_FROM=your_email@gmail.com
+EMAIL_VERIFY_MAX_AGE_SECONDS=86400
+
+ADMIN_EMAILS=admin1@gmail.com,admin2@gmail.com
+FLASK_DEBUG=true
 ```
 
 5. Create tables.
@@ -75,11 +96,8 @@ Open: `http://127.0.0.1:5000`
 
 ## Admin Access
 
-The app includes a built-in test admin login path:
-- Email: `admin@test.com`
-- Password: `password123`
-
-On first successful login with these credentials, the account is created (or promoted to admin).
+Admin access is controlled by email via `ADMIN_EMAILS`.
+Any authenticated user whose verified email is listed there is treated as admin.
 
 ## Booking Rules
 - Overlap checks block bookings that conflict with statuses:
@@ -142,8 +160,7 @@ RentACar_Website/
 ```
 
 ## Notes
-- This project is currently configured for MySQL in `app.py`.
-- For production, replace the hardcoded `app.secret_key` with a secure environment variable.
+- Use strong environment secrets in production and disable debug mode.
 
 ## System Developer
 - Errol Matthew Cudala

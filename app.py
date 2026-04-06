@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, flash, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, jsonify, flash, send_from_directory, abort
 from werkzeug.utils import secure_filename
 from flask_wtf import CSRFProtect
 from functools import wraps
@@ -7,22 +7,41 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 import os
 from datetime import datetime, timedelta, date
 from collections import Counter
-from sqlalchemy import inspect, text
+from sqlalchemy import inspect, text, or_
 from models import db, Car, User, Booking, Review, Payment
 from forms import RegistrationForm, LoginForm, BookingForm, ReviewForm, CarForm, UserForm
+from dotenv import load_dotenv
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+from email.message import EmailMessage
+import smtplib
 import re
 
+load_dotenv()
+
 app = Flask(__name__)
-app.secret_key = "supersecret"
+app.secret_key = os.getenv('SECRET_KEY', 'change-this-secret-key')
 csrf = CSRFProtect(app)
 
 # Database settings - MySQL with XAMPP
 # Connection format: mysql+pymysql://username:password@host:port/database
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:@localhost:3306/car_rental'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'mysql+pymysql://root:@localhost:3306/car_rental')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static/images/uploads')
 app.config['IMAGES_FOLDER'] = os.path.join(app.root_path, 'static/images')
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'pdf'}
+
+app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', '').strip()
+app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', '587'))
+app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'true').lower() in {'1', 'true', 'yes', 'on'}
+app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME', '').strip()
+app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD', '').strip()
+app.config['MAIL_FROM'] = os.getenv('MAIL_FROM', app.config['MAIL_USERNAME']).strip()
+app.config['EMAIL_VERIFY_MAX_AGE_SECONDS'] = int(os.getenv('EMAIL_VERIFY_MAX_AGE_SECONDS', '86400'))
+app.config['ADMIN_EMAILS'] = {
+    email.strip().lower()
+    for email in os.getenv('ADMIN_EMAILS', '').split(',')
+    if email.strip()
+}
 
 # Ensure upload directory exists so file.save() does not fail.
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -37,6 +56,111 @@ login_manager.login_view = 'login'
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(User, int(user_id))
+
+def get_email_serializer():
+    """Serializer used to sign and validate email verification tokens."""
+    return URLSafeTimedSerializer(app.secret_key)
+
+
+def generate_email_verification_token(user):
+    """Create a signed token for email verification links."""
+    serializer = get_email_serializer()
+    return serializer.dumps({'user_id': user.id, 'email': user.email}, salt='email-verify')
+
+
+def verify_email_verification_token(token, max_age):
+    """Validate and decode email verification token payload."""
+    serializer = get_email_serializer()
+    try:
+        return serializer.loads(token, salt='email-verify', max_age=max_age)
+    except (BadSignature, SignatureExpired):
+        return None
+
+
+def send_verification_email(user):
+    """Send an email verification link to a newly registered user."""
+    mail_server = app.config['MAIL_SERVER']
+    mail_port = app.config['MAIL_PORT']
+    mail_from = app.config['MAIL_FROM']
+
+    if not mail_server or not mail_from:
+        raise RuntimeError('Mail settings are incomplete. Configure MAIL_SERVER and MAIL_FROM.')
+
+    token = generate_email_verification_token(user)
+    verify_url = url_for('verify_email', token=token, _external=True)
+
+    subject = 'Verify your Rent A Car account'
+    body = (
+        f"Hello {user.name},\n\n"
+        f"Please verify your email by opening this link:\n{verify_url}\n\n"
+        f"This link expires in {app.config['EMAIL_VERIFY_MAX_AGE_SECONDS'] // 3600} hour(s).\n\n"
+        'If you did not create this account, please ignore this email.'
+    )
+
+    message = EmailMessage()
+    message['Subject'] = subject
+    message['From'] = mail_from
+    message['To'] = user.email
+    message.set_content(body)
+
+    with smtplib.SMTP(mail_server, mail_port, timeout=15) as smtp:
+        if app.config['MAIL_USE_TLS']:
+            smtp.starttls()
+        if app.config['MAIL_USERNAME']:
+            smtp.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
+        smtp.send_message(message)
+
+
+def generate_otp():
+    """Generate a random 6-digit OTP."""
+    import random
+    return ''.join([str(random.randint(0, 9)) for _ in range(6)])
+
+
+def send_otp_email(user):
+    """Send OTP via email to user."""
+    mail_server = app.config['MAIL_SERVER']
+    mail_port = app.config['MAIL_PORT']
+    mail_from = app.config['MAIL_FROM']
+
+    if not mail_server or not mail_from:
+        raise RuntimeError('Mail settings are incomplete. Configure MAIL_SERVER and MAIL_FROM.')
+
+    subject = 'Your Rent A Car Email Verification Code'
+    body = (
+        f"Hello {user.name},\n\n"
+        f"Your verification code is: {user.otp}\n\n"
+        f"This code expires in 15 minutes.\n\n"
+        'If you did not request this code, please ignore this email.'
+    )
+
+    message = EmailMessage()
+    message['Subject'] = subject
+    message['From'] = mail_from
+    message['To'] = user.email
+    message.set_content(body)
+
+    with smtplib.SMTP(mail_server, mail_port, timeout=15) as smtp:
+        if app.config['MAIL_USE_TLS']:
+            smtp.starttls()
+        if app.config['MAIL_USERNAME']:
+            smtp.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
+        smtp.send_message(message)
+
+
+def sanitize_next_path(next_path):
+    """Allow only local absolute paths for redirects to avoid open redirect issues."""
+    if not next_path:
+        return ''
+    value = str(next_path).strip()
+    if value.startswith('/') and not value.startswith('//'):
+        return value
+    return ''
+
+
+def should_assign_admin(email):
+    """Check if email is configured as admin via ADMIN_EMAILS env variable."""
+    return bool(email and email.lower() in app.config['ADMIN_EMAILS'])
 
 # Helper Functions
 def allowed_file(filename):
@@ -101,6 +225,51 @@ def ensure_user_contact_column():
         db.session.execute(text("ALTER TABLE `user` ADD COLUMN contact VARCHAR(20) NULL AFTER email"))
         db.session.commit()
 
+
+def ensure_user_firebase_columns():
+    """Add firebase-related user columns for older databases."""
+    inspector = inspect(db.engine)
+    if not inspector.has_table('user'):
+        return
+
+    column_names = {column['name'] for column in inspector.get_columns('user')}
+    if 'firebase_uid' not in column_names:
+        db.session.execute(text("ALTER TABLE `user` ADD COLUMN firebase_uid VARCHAR(128) NULL AFTER email"))
+        db.session.commit()
+    if 'profile_picture' not in column_names:
+        db.session.execute(text("ALTER TABLE `user` ADD COLUMN profile_picture VARCHAR(255) NULL AFTER firebase_uid"))
+        db.session.commit()
+
+
+def ensure_user_email_verification_columns():
+    """Add email verification columns for older databases."""
+    inspector = inspect(db.engine)
+    if not inspector.has_table('user'):
+        return
+
+    column_names = {column['name'] for column in inspector.get_columns('user')}
+    if 'email_verified' not in column_names:
+        db.session.execute(text("ALTER TABLE `user` ADD COLUMN email_verified TINYINT(1) NOT NULL DEFAULT 0 AFTER password"))
+        db.session.commit()
+    if 'email_verified_at' not in column_names:
+        db.session.execute(text("ALTER TABLE `user` ADD COLUMN email_verified_at DATETIME NULL AFTER email_verified"))
+        db.session.commit()
+
+
+def ensure_user_otp_columns():
+    """Add OTP columns for email verification via OTP."""
+    inspector = inspect(db.engine)
+    if not inspector.has_table('user'):
+        return
+
+    column_names = {column['name'] for column in inspector.get_columns('user')}
+    if 'otp' not in column_names:
+        db.session.execute(text("ALTER TABLE `user` ADD COLUMN otp VARCHAR(6) NULL AFTER email_verified_at"))
+        db.session.commit()
+    if 'otp_expires_at' not in column_names:
+        db.session.execute(text("ALTER TABLE `user` ADD COLUMN otp_expires_at DATETIME NULL AFTER otp"))
+        db.session.commit()
+
 def ensure_booking_pickup_area_column():
     """Add booking.pickup_area column for older databases that were created before this field existed."""
     inspector = inspect(db.engine)
@@ -143,6 +312,9 @@ def get_booking_display_pickup_area_and_notes(booking):
 
 with app.app_context():
     ensure_user_contact_column()
+    ensure_user_firebase_columns()
+    ensure_user_email_verification_columns()
+    ensure_user_otp_columns()
     ensure_booking_pickup_area_column()
 
 # Public Routes
@@ -248,9 +420,66 @@ def car_reviews(car_id):
     
     return render_template('car_reviews.html', car=car, reviews=reviews, rating_distribution=rating_distribution)
 
-@app.route('/about')
+@app.route('/about', methods=['GET', 'POST'])
 def about_contact():
-    """About page with company information."""
+    """About page with company information and contact form for concerns."""
+    if request.method == 'POST':
+        name = ' '.join((request.form.get('name') or '').strip().split())
+        email = (request.form.get('email') or '').strip().lower()
+        subject = ' '.join((request.form.get('subject') or '').strip().split())
+        message = ' '.join((request.form.get('message') or '').strip().split())
+
+        if not name or not email or not subject or not message:
+            flash('Please complete all contact fields before submitting.', 'warning')
+            return render_template('about_contact.html', form_data=request.form)
+
+        if '@' not in email or '.' not in email.split('@')[-1]:
+            flash('Please provide a valid email address.', 'warning')
+            return render_template('about_contact.html', form_data=request.form)
+
+        # Keep validation practical so valid concerns are not rejected.
+        if len(name) < 2 or len(subject) < 2 or len(message) < 5:
+            flash('Please provide a little more detail so we can assist you better.', 'warning')
+            return render_template('about_contact.html', form_data=request.form)
+
+        admin_emails = [addr for addr in app.config.get('ADMIN_EMAILS', set()) if addr and '@' in addr]
+        # For Gmail SMTP reliability, sender should match the authenticated mailbox.
+        mail_sender = app.config.get('MAIL_USERNAME') or app.config.get('MAIL_FROM')
+        recipient_candidates = [app.config.get('MAIL_USERNAME'), app.config.get('MAIL_FROM')] + admin_emails
+        recipients = [addr for addr in dict.fromkeys(recipient_candidates) if addr]
+
+        if not app.config.get('MAIL_SERVER') or not recipients or not mail_sender:
+            flash('Contact service is temporarily unavailable. Please try again later.', 'danger')
+            return render_template('about_contact.html', form_data=request.form)
+
+        email_message = EmailMessage()
+        email_message['Subject'] = f"[Rent A Car Contact] {subject}"
+        email_message['From'] = mail_sender
+        email_message['To'] = ', '.join(recipients)
+        email_message['Reply-To'] = email
+        email_message.set_content(
+            f"New customer concern from About page\n\n"
+            f"Name: {name}\n"
+            f"Email: {email}\n"
+            f"Subject: {subject}\n\n"
+            f"Message:\n{message}\n"
+        )
+
+        try:
+            with smtplib.SMTP(app.config['MAIL_SERVER'], app.config['MAIL_PORT'], timeout=15) as smtp:
+                if app.config.get('MAIL_USE_TLS'):
+                    smtp.starttls()
+                if app.config.get('MAIL_USERNAME'):
+                    smtp.login(app.config['MAIL_USERNAME'], app.config.get('MAIL_PASSWORD') or '')
+                smtp.send_message(email_message)
+
+            flash('Your message has been sent to our team. We will contact you soon.', 'success')
+            return redirect(url_for('about_contact'))
+        except Exception:
+            app.logger.exception('Failed to send contact concern from About page')
+            flash('We could not send your message right now. Please try again after a few minutes.', 'danger')
+            return render_template('about_contact.html', form_data=request.form)
+
     return render_template('about_contact.html')
 
 # API Routes
@@ -360,56 +589,196 @@ def check_booking_conflict():
 # Authentication Routes
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """User login page - authenticate users and admins."""
+    """User login page with email verification enforcement."""
     form = LoginForm()
-    
+
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+
+    next_path = sanitize_next_path(request.args.get('next', '') or request.form.get('next', ''))
+
     if form.validate_on_submit():
-        # Special handling for test admin account
-        if form.email.data == 'admin@test.com' and form.password.data == 'password123':
-            user = User.query.filter_by(email='admin@test.com').first()
-            if not user:
-                hashed_password = generate_password_hash('password123', method='pbkdf2:sha256')
-                user = User(name='Admin', email='admin@test.com', password=hashed_password, is_admin=True)
-                db.session.add(user)
-                db.session.commit()
-            else:
-                user.is_admin = True
-                db.session.commit()
-            
-            login_user(user)
-            flash('Logged in successfully!', 'success')
-            return redirect(url_for('home'))
-        else:
-            # Regular user authentication
-            user = User.query.filter_by(email=form.email.data).first()
-            if user and check_password_hash(user.password, form.password.data):
-                login_user(user)
-                flash('Logged in successfully!', 'success')
-                return redirect(url_for('home'))
-            else:
-                flash('Invalid email or password.', 'danger')
-    
-    return render_template('login.html', form=form)
+        email = (form.email.data or '').strip().lower()
+        user = User.query.filter_by(email=email).first()
+
+        if not user or not check_password_hash(user.password, form.password.data):
+            flash('Invalid email or password.', 'danger')
+            return render_template('login.html', form=form, next_path=next_path)
+
+        # Check if email is verified
+        if not user.email_verified:
+            flash('Please verify your email first. Check your email for the verification code.', 'warning')
+            return redirect(url_for('verify_otp_page', email=email))
+
+        login_user(user)
+        flash('Logged in successfully!', 'success')
+        if next_path:
+            return redirect(next_path)
+        return redirect(url_for('dashboard'))
+
+    return render_template('login.html', form=form, next_path=next_path)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    """User registration page - create new user accounts."""
+    """User registration page."""
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+
     form = RegistrationForm()
-    
+
     if form.validate_on_submit():
+        email = (form.email.data or '').strip().lower()
+        
+        # Check if email already exists
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
+            flash('Email is already registered.', 'danger')
+            return render_template('register.html', form=form)
+        
         hashed_password = generate_password_hash(form.password.data, method='pbkdf2:sha256')
+        otp = generate_otp()
+        otp_expires_at = datetime.utcnow() + timedelta(minutes=15)
+
         new_user = User(
             name=form.name.data,
-            email=form.email.data,
+            email=email,
             contact=(form.contact.data or '').strip(),
-            password=hashed_password
+            password=hashed_password,
+            otp=otp,
+            otp_expires_at=otp_expires_at,
+            is_admin=should_assign_admin(email),
+            email_verified=False,
+            email_verified_at=None,
         )
-        db.session.add(new_user)
-        db.session.commit()
-        flash('Account created successfully! Please log in.', 'success')
-        return redirect(url_for('login'))
-    
+
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            app.logger.exception('Registration failed while creating account')
+            flash('Could not create account. Please try again.', 'danger')
+            return render_template('register.html', form=form)
+
+        # Send OTP email
+        try:
+            send_otp_email(new_user)
+            flash('Account created! Check your email for the verification code.', 'success')
+            return redirect(url_for('verify_otp_page', email=email))
+        except Exception as e:
+            app.logger.exception('Unable to send OTP email for user %s during registration', new_user.email)
+            flash('Account created but email failed to send. Please try resending the code.', 'warning')
+            return redirect(url_for('verify_otp_page', email=email))
+
     return render_template('register.html', form=form)
+
+@app.route('/verify-otp', methods=['GET', 'POST'])
+@csrf.exempt
+def verify_otp_page():
+    """OTP verification page."""
+    email = request.args.get('email', '').strip().lower()
+    
+    if not email:
+        flash('Email not found. Please register again.', 'danger')
+        return redirect(url_for('register'))
+    
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        flash('User not found. Please register again.', 'danger')
+        return redirect(url_for('register'))
+    
+    if request.method == 'POST':
+        otp = request.form.get('otp', '').strip()
+        
+        # Check if OTP is expired
+        if user.otp_expires_at and datetime.utcnow() > user.otp_expires_at:
+            flash('Verification code expired. Please request a new one.', 'danger')
+            return render_template('verify_otp.html', email=email)
+        
+        # Check if OTP is correct
+        if user.otp == otp:
+            user.email_verified = True
+            user.email_verified_at = datetime.utcnow()
+            user.otp = None
+            user.otp_expires_at = None
+            db.session.commit()
+            flash('Email verified successfully! You can now log in.', 'success')
+            return redirect(url_for('login'))
+        else:
+            flash('Invalid verification code. Please try again.', 'danger')
+            return render_template('verify_otp.html', email=email)
+    
+    return render_template('verify_otp.html', email=email)
+
+@app.route('/resend-otp', methods=['POST'])
+@csrf.exempt
+def resend_otp():
+    """Resend OTP to user."""
+    email = request.form.get('email', '').strip().lower()
+    user = User.query.filter_by(email=email).first()
+    
+    if not user:
+        flash('User not found.', 'danger')
+        return redirect(url_for('register'))
+    
+    # Generate new OTP
+    user.otp = generate_otp()
+    user.otp_expires_at = datetime.utcnow() + timedelta(minutes=15)
+    
+    try:
+        send_otp_email(user)
+        db.session.commit()
+        flash('New verification code sent to your email.', 'success')
+    except Exception:
+        app.logger.exception('Unable to resend OTP email for user %s', email)
+        flash('Could not send verification code. Please try again.', 'danger')
+    
+    return redirect(url_for('verify_otp_page', email=email))
+
+
+@app.route('/verify-email/<token>')
+def verify_email(token):
+    """Confirm a user's email verification token."""
+    payload = verify_email_verification_token(token, app.config['EMAIL_VERIFY_MAX_AGE_SECONDS'])
+    if not payload:
+        flash('Verification link is invalid or expired. Please request a new one.', 'danger')
+        return redirect(url_for('login'))
+
+    user = User.query.get(payload.get('user_id'))
+    if not user or user.email.lower() != (payload.get('email') or '').lower():
+        flash('Verification link is invalid.', 'danger')
+        return redirect(url_for('login'))
+
+    if user.email_verified:
+        flash('Your email is already verified. You can log in now.', 'info')
+        return redirect(url_for('login'))
+
+    user.email_verified = True
+    user.email_verified_at = datetime.utcnow()
+    db.session.commit()
+    flash('Email verified successfully. You can now log in.', 'success')
+    return redirect(url_for('login'))
+
+
+@app.route('/resend-verification', methods=['POST'])
+def resend_verification():
+    """Resend verification link for unverified accounts."""
+    email = (request.form.get('email') or '').strip().lower()
+    if not email:
+        flash('Please enter your email to resend verification.', 'warning')
+        return redirect(url_for('login'))
+
+    user = User.query.filter_by(email=email).first()
+    if user and not user.email_verified:
+        try:
+            send_verification_email(user)
+        except Exception:
+            app.logger.exception('Failed to resend verification email for %s', email)
+            flash('Unable to resend verification email right now. Please try again later.', 'danger')
+            return redirect(url_for('login'))
+
+    flash('If an unverified account exists for that email, a verification link has been sent.', 'info')
+    return redirect(url_for('login'))
 
 @app.route('/logout')
 @login_required
@@ -417,7 +786,136 @@ def logout():
     """Log out the current user."""
     logout_user()
     flash('Logged out successfully.', 'info')
-    return redirect(url_for('home'))
+    return redirect(url_for('login'))
+
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    """User dashboard with booking insights and quick actions."""
+    if current_user.is_admin:
+        return redirect(url_for('admin_dashboard'))
+
+    bookings = Booking.query.filter_by(user_id=current_user.id).order_by(Booking.submitted_at.desc()).all()
+    status_counts = Counter((booking.status or 'Pending') for booking in bookings)
+    total_spent = 0.0
+
+    for booking in bookings:
+        try:
+            rental_days = (booking.return_date - booking.pickup_date).days + 1
+            if rental_days < 1:
+                rental_days = 1
+        except Exception:
+            rental_days = 1
+
+        unit_price = parse_price(booking.car.price if booking.car else '')
+        booking.rental_days = rental_days
+        booking.total_cost = round(unit_price * rental_days, 2)
+        booking.total_cost_display = format_peso(booking.total_cost)
+        pickup_area_display, notes_display = get_booking_display_pickup_area_and_notes(booking)
+        booking.pickup_area_display = pickup_area_display
+        booking.notes_display = notes_display
+
+        if (booking.payment_status or '').lower() == 'paid':
+            total_spent += booking.total_cost
+
+    today = date.today()
+    upcoming_booking = Booking.query.filter_by(user_id=current_user.id).filter(
+        Booking.pickup_date >= today,
+        Booking.status.in_(['Pending', 'Approved'])
+    ).order_by(Booking.pickup_date.asc()).first()
+
+    if upcoming_booking:
+        try:
+            rental_days = (upcoming_booking.return_date - upcoming_booking.pickup_date).days + 1
+            if rental_days < 1:
+                rental_days = 1
+        except Exception:
+            rental_days = 1
+
+        unit_price = parse_price(upcoming_booking.car.price if upcoming_booking.car else '')
+        upcoming_booking.rental_days = rental_days
+        upcoming_booking.total_cost = round(unit_price * rental_days, 2)
+        upcoming_booking.total_cost_display = format_peso(upcoming_booking.total_cost)
+        pickup_area_display, notes_display = get_booking_display_pickup_area_and_notes(upcoming_booking)
+        upcoming_booking.pickup_area_display = pickup_area_display
+        upcoming_booking.notes_display = notes_display
+
+    return render_template(
+        'dashboard.html',
+        total_bookings=len(bookings),
+        approved_bookings=status_counts.get('Approved', 0),
+        pending_bookings=status_counts.get('Pending', 0),
+        completed_bookings=status_counts.get('Completed', 0) + status_counts.get('Returned', 0),
+        rejected_bookings=status_counts.get('Rejected', 0),
+        total_spent_display=format_peso(total_spent),
+        recent_bookings=bookings[:5],
+        upcoming_booking=upcoming_booking
+    )
+
+
+@app.route('/profile')
+@login_required
+def profile():
+    """User profile page with account and rental activity summary."""
+    user_bookings = Booking.query.filter_by(user_id=current_user.id).order_by(Booking.submitted_at.desc()).all()
+    reviews = Review.query.filter_by(user_id=current_user.id).all()
+
+    total_bookings = len(user_bookings)
+    approved_bookings = len([booking for booking in user_bookings if booking.status == 'Approved'])
+    pending_bookings = len([booking for booking in user_bookings if booking.status == 'Pending'])
+    completed_rentals = len([booking for booking in user_bookings if booking.status in ['Completed', 'Returned']])
+
+    total_spent = 0.0
+    for booking in user_bookings:
+        try:
+            rental_days = (booking.return_date - booking.pickup_date).days + 1
+            if rental_days < 1:
+                rental_days = 1
+        except Exception:
+            rental_days = 1
+
+        unit_price = parse_price(booking.car.price if booking.car else '')
+        booking.total_cost = round(unit_price * rental_days, 2)
+        booking.total_cost_display = format_peso(booking.total_cost)
+
+        if (booking.payment_status or '').lower() == 'paid':
+            total_spent += booking.total_cost
+
+    reviews_count = len(reviews)
+    average_rating = round(sum(review.rating for review in reviews) / reviews_count, 1) if reviews_count else None
+
+    completion_checks = [
+        bool(current_user.name),
+        bool(current_user.email),
+        bool(current_user.contact),
+        bool(current_user.email_verified)
+    ]
+    profile_completion = int((sum(1 for check in completion_checks if check) / len(completion_checks)) * 100)
+
+    last_booking = user_bookings[0] if user_bookings else None
+    if last_booking:
+        pickup_area_display, notes_display = get_booking_display_pickup_area_and_notes(last_booking)
+        last_booking.pickup_area_display = pickup_area_display
+        last_booking.notes_display = notes_display
+
+    member_since = current_user.created_at.strftime('%B %d, %Y') if current_user.created_at else 'Recently'
+    membership_days = (date.today() - current_user.created_at.date()).days if current_user.created_at else 0
+
+    return render_template(
+        'profile.html',
+        total_bookings=total_bookings,
+        approved_bookings=approved_bookings,
+        pending_bookings=pending_bookings,
+        completed_rentals=completed_rentals,
+        total_spent_display=format_peso(total_spent),
+        reviews_count=reviews_count,
+        average_rating=average_rating,
+        profile_completion=profile_completion,
+        member_since=member_since,
+        membership_days=membership_days,
+        last_booking=last_booking
+    )
 
 # Booking Routes
 @app.route('/book', methods=['GET', 'POST'])
@@ -1143,7 +1641,9 @@ def admin_add_user():
             name=form.name.data,
             email=form.email.data,
             password=hashed_password,
-            is_admin=form.is_admin.data == 'True'
+            is_admin=form.is_admin.data == 'True',
+            email_verified=True,
+            email_verified_at=datetime.utcnow()
         )
         
         db.session.add(user)
@@ -1309,8 +1809,19 @@ def admin_reports():
 
 # File Serving Route
 @app.route('/uploads/<filename>')
+@login_required
 def uploaded_file(filename):
-    """Serve uploaded files (ID and license documents)."""
+    """Serve uploaded files only to owner or admin users."""
+    booking = Booking.query.filter(
+        or_(Booking.id_file == filename, Booking.license_file == filename)
+    ).first()
+
+    if not booking:
+        abort(404)
+
+    if not current_user.is_admin and booking.user_id != current_user.id:
+        abort(403)
+
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 # Database Initialization
@@ -1361,16 +1872,14 @@ if __name__ == '__main__':
             db.session.add_all(sample_cars)
             db.session.commit()
         
-        # Create hardcoded admin user if not exist
-        admin_user = User.query.filter_by(email='admin@test.com').first()
-        if not admin_user:
-            hashed_password = generate_password_hash('password123', method='pbkdf2:sha256')
-            admin_user = User(name='Admin', email='admin@test.com', password=hashed_password, is_admin=True)
-            db.session.add(admin_user)
-        else:
-            admin_user.is_admin = True
+        # Promote configured admin emails if those users already exist.
+        if app.config['ADMIN_EMAILS']:
+            users_to_promote = User.query.filter(User.email.in_(list(app.config['ADMIN_EMAILS']))).all()
+            for admin_user in users_to_promote:
+                admin_user.is_admin = True
         
         db.session.commit()
-    
-    app.run(debug=True)
+
+    debug_enabled = os.getenv('FLASK_DEBUG', 'false').lower() in {'1', 'true', 'yes', 'on'}
+    app.run(debug=debug_enabled)
 

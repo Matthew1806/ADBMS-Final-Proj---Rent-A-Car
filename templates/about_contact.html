@@ -77,40 +77,74 @@
 
 <section class="contact-section modern-section reveal-up delay-24">
     <div class="container contact-layout">
-        <div class="card contact-card">
-            <h3>Contact Information</h3>
-            <div class="info-item"><i class="fas fa-map-marker-alt"></i>
-                <div>
-                    <strong>Address</strong>
-                    <div>Cadena de Amor St, Brgy Munting Pulo - Tangob Rd, Lipa City, 4217 Batangas</div>
+        <div class="contact-top-grid">
+            <div class="card contact-card">
+                <h3>Contact Information</h3>
+                <div class="info-item"><i class="fas fa-map-marker-alt"></i>
+                    <div>
+                        <strong>Address</strong>
+                        <div>Cadena de Amor St, Brgy Munting Pulo - Tangob Rd, Lipa City, 4217 Batangas</div>
+                    </div>
+                </div>
+                <div class="info-item"><i class="fas fa-phone"></i>
+                    <div>
+                        <strong>Phone</strong>
+                        <div>+63 (994) 784 1968</div>
+                    </div>
+                </div>
+                <div class="info-item"><i class="fas fa-envelope"></i>
+                    <div>
+                        <strong>Email</strong>
+                        <div>rentacarlipaandbatangas@gmail.com</div>
+                    </div>
+                </div>
+                <div class="info-item"><i class="fas fa-clock"></i>
+                    <div>
+                        <strong>Hours</strong>
+                        <div>Mon-Fri 8:00-18:00, Sat 9:00-16:00</div>
+                    </div>
                 </div>
             </div>
-            <div class="info-item"><i class="fas fa-phone"></i>
-                <div>
-                    <strong>Phone</strong>
-                    <div>+63 (994) 784 1968</div>
-                </div>
-            </div>
-            <div class="info-item"><i class="fas fa-envelope"></i>
-                <div>
-                    <strong>Email</strong>
-                    <div>rentacarlipaandbatangas@gmail.com</div>
-                </div>
-            </div>
-            <div class="info-item"><i class="fas fa-clock"></i>
-                <div>
-                    <strong>Hours</strong>
-                    <div>Mon-Fri 8:00-18:00, Sat 9:00-16:00</div>
+
+            <div class="contact-map card">
+                <h3>Our Location</h3>
+                <div class="map-wrap">
+                    <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1982514.5490263924!2d119.39512381295148!3d13.952726745921355!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x33bd6d9f3cffacef%3A0x738671947a949758!2sRent%20a%20Car%20Lipa%20and%20Batangas!5e0!3m2!1sen!2sph!4v1763557199532!5m2!1sen!2sph" loading="lazy" title="Rent A Car location map"></iframe>
                 </div>
             </div>
         </div>
 
-        <div class="contact-map card">
-            <h3>Our Location</h3>
-            <div class="map-wrap">
-                <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1982514.5490263924!2d119.39512381295148!3d13.952726745921355!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x33bd6d9f3cffacef%3A0x738671947a949758!2sRent%20a%20Car%20Lipa%20and%20Batangas!5e0!3m2!1sen!2sph!4v1763557199532!5m2!1sen!2sph" loading="lazy" title="Rent A Car location map"></iframe>
+        <form method="post" class="card contact-form-card" novalidate>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <h3>Send a Concern to Admin</h3>
+            <p class="contact-form-subtext">Need assistance? Submit your concern here and our admin team will respond through your email.</p>
+
+            <div class="contact-form-grid">
+                <div class="form-field">
+                    <label for="contact-name">Full Name</label>
+                    <input id="contact-name" name="name" type="text" required minlength="2" maxlength="100" placeholder="Juan Dela Cruz" value="{{ (form_data.name if form_data is defined and form_data.name else (current_user.name if current_user.is_authenticated else '')) }}">
+                </div>
+                <div class="form-field">
+                    <label for="contact-email">Email</label>
+                    <input id="contact-email" name="email" type="email" required maxlength="120" placeholder="you@example.com" value="{{ (form_data.email if form_data is defined and form_data.email else (current_user.email if current_user.is_authenticated else '')) }}">
+                </div>
             </div>
-        </div>
+
+            <div class="form-field">
+                <label for="contact-subject">Subject</label>
+                <input id="contact-subject" name="subject" type="text" required minlength="4" maxlength="160" placeholder="Booking concern / Payment issue / Other" value="{{ form_data.subject if form_data is defined and form_data.subject else '' }}">
+            </div>
+
+            <div class="form-field">
+                <label for="contact-message">Message</label>
+                <textarea id="contact-message" name="message" rows="5" required minlength="10" maxlength="2000" placeholder="Describe your concern in detail...">{{ form_data.message if form_data is defined and form_data.message else '' }}</textarea>
+            </div>
+
+            <button type="submit" class="contact-submit-btn">
+                <i class="fas fa-paper-plane"></i>
+                Send Message
+            </button>
+        </form>
     </div>
 </section>
 {% endblock %}

@@ -31,8 +31,14 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)  # Unique user ID
     name = db.Column(db.String(100), nullable=False)  # Full name
     email = db.Column(db.String(100), unique=True, nullable=False)  # Email address (must be unique)
+    firebase_uid = db.Column(db.String(128), unique=True, nullable=True)  # Firebase user UID
+    profile_picture = db.Column(db.String(255), nullable=True)  # Google profile image URL
     contact = db.Column(db.String(20), nullable=True)  # Customer contact number
     password = db.Column(db.String(200), nullable=False)  # Hashed password
+    email_verified = db.Column(db.Boolean, default=False, nullable=False)  # Must verify email before login
+    email_verified_at = db.Column(db.DateTime, nullable=True)  # Timestamp when verification happened
+    otp = db.Column(db.String(6), nullable=True)  # One-time password for email verification
+    otp_expires_at = db.Column(db.DateTime, nullable=True)  # When OTP expires
     is_admin = db.Column(db.Boolean, default=False)  # Is this user an admin?
     created_at = db.Column(db.DateTime, default=datetime.utcnow)  # Account creation date
 

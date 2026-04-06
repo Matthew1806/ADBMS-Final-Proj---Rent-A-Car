@@ -224,15 +224,15 @@
     font-size: 13px;
     color: #ef4444;
     padding: 8px 12px;
-    background-color: rgba(239, 68, 68, 0.08);
+    background-color: rgba(67, 64, 64, 0.39);
     border-radius: 6px;
-    border-left: 3px solid #ef4444;
+    border-left: 3px solid #1c1a1a;
 }
 
 .password-requirements {
     display: none;
-    background: rgba(127, 29, 29, 0.12);
-    border: 1px solid rgba(239, 68, 68, 0.35);
+    background: rgba(148, 163, 184, 0.14);
+    border: 1px solid rgba(148, 163, 184, 0.35);
     border-radius: 10px;
     padding: 12px 14px;
     margin-top: 4px;
@@ -245,7 +245,7 @@
 .requirements-title {
     font-size: 12px;
     font-weight: 700;
-    color: #fecaca;
+    color: #cbd5e1;
     margin: 0 0 8px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -267,7 +267,6 @@
     align-items: center;
     gap: 8px;
     font-weight: 600;
-    display: none;
 }
 
 .requirements-list i {
@@ -276,7 +275,36 @@
 }
 
 .requirements-list li.unmet {
-    display: flex;
+    color: #cbd5e1;
+}
+
+.requirements-list li.unmet i {
+    color: #94a3b8;
+}
+
+.requirements-list li.met {
+    color: #86efac;
+}
+
+.requirements-list li.met i {
+    color: #22c55e;
+}
+
+.password-requirements.has-errors {
+    background: rgba(127, 29, 29, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.password-requirements.has-errors .requirements-title {
+    color: #fecaca;
+}
+
+.password-requirements.has-errors .requirements-list li.unmet {
+    color: #fca5a5;
+}
+
+.password-requirements.has-errors .requirements-list li.unmet i {
+    color: #ef4444;
 }
 
 .checkbox-group {

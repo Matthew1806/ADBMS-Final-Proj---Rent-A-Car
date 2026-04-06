@@ -8,13 +8,9 @@ from wtforms.validators import DataRequired, Length, ValidationError, Email, Equ
 # ---------------- REGISTRATION FORM ----------------
 # This form is for users to register
 class RegistrationForm(FlaskForm):
-    name = StringField('Full Name', validators=[DataRequired(), Length(min=10, max=100)])  # User's full name
+    name = StringField('Full Name', validators=[DataRequired(), Length(min=2, max=100)])  # User's full name
     email = StringField('Email Address', validators=[DataRequired(), Email()])  # Email with validation
-    contact = StringField('Contact Number', validators=[
-        DataRequired(),
-        Length(min=11, max=13),
-        Regexp(r'^(\+63|0)\d{10}$', message='Use PH format like 09XXXXXXXXX or +63XXXXXXXXXX.')
-    ])  # User contact number
+    contact = StringField('Contact Number', validators=[DataRequired()])  # User contact number
     password = PasswordField('Password', validators=[DataRequired(), Length(min=6)])  # Password (min 6 chars)
     confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password')])  # Must match password
     submit = SubmitField('Create Account')  # Submit button

@@ -186,8 +186,11 @@
     });
 
     // Password requirements validation
+    const registerForm = document.getElementById('registerForm');
     const passwordInput = document.getElementById('password');
+    const confirmPasswordInput = document.getElementById('confirm_password');
     const requirementsBox = document.querySelector('.password-requirements');
+    let hasAttemptedSubmit = false;
     
     const requirements = {
         length: /^.{8,}$/,
@@ -196,28 +199,74 @@
         number: /[0-9]/
     };
 
-    function updatePasswordRequirements() {
+    function updatePasswordRequirements(showErrors = false) {
         const password = passwordInput.value;
         let unmetCount = 0;
         
         for (const [req, regex] of Object.entries(requirements)) {
             const element = document.getElementById(`req-${req}`);
+            const icon = element.querySelector('i');
             if (regex.test(password)) {
                 element.classList.remove('unmet');
+                element.classList.add('met');
+                if (icon) {
+                    icon.classList.remove('fa-triangle-exclamation');
+                    icon.classList.add('fa-check-circle');
+                }
             } else {
                 unmetCount += 1;
+                element.classList.remove('met');
                 element.classList.add('unmet');
+                if (icon) {
+                    icon.classList.remove('fa-check-circle');
+                    icon.classList.add('fa-triangle-exclamation');
+                }
             }
         }
 
         if (!requirementsBox) return;
 
+        requirementsBox.classList.toggle('has-errors', showErrors && unmetCount > 0);
+
         const hasInput = password.length > 0;
-        const shouldShow = hasInput && unmetCount > 0;
+        // Show the requirements once user starts typing, and keep it visible
+        // while there is input even if all conditions are already satisfied.
+        const shouldShow = hasInput;
         requirementsBox.classList.toggle('is-visible', shouldShow);
+
+        return unmetCount;
     }
 
-    passwordInput.addEventListener('input', updatePasswordRequirements);
-    updatePasswordRequirements();
+    passwordInput.addEventListener('input', function() {
+        hasAttemptedSubmit = false;
+        updatePasswordRequirements(false);
+    });
+
+    confirmPasswordInput.addEventListener('focus', function() {
+        if (passwordInput.value.length > 0) {
+            hasAttemptedSubmit = true;
+            updatePasswordRequirements(true);
+        }
+    });
+
+    confirmPasswordInput.addEventListener('input', function() {
+        if (passwordInput.value.length > 0) {
+            hasAttemptedSubmit = true;
+            updatePasswordRequirements(true);
+        }
+    });
+
+    registerForm.addEventListener('submit', function(e) {
+        hasAttemptedSubmit = true;
+        const unmetCount = updatePasswordRequirements(true);
+
+        if (unmetCount > 0) {
+            e.preventDefault();
+            requirementsBox.classList.add('is-visible');
+            passwordInput.focus();
+        }
+    });
+
+    updatePasswordRequirements(false);
 </script>
 {% endblock %}

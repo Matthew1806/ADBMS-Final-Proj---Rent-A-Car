@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+
+{% block title %}Profile - Rent A Car{% endblock %}
+
+{% block content %}
+<section class="profile-shell">
+    <article class="profile-hero-card" style="--profile-completion: {{ profile_completion }}%;">
+        <div class="profile-header-main">
+            <img
+                class="profile-avatar"
+                src="{{ current_user.profile_picture or url_for('static', filename='images/header/RentACarLogo.png') }}"
+                alt="{{ current_user.name }} profile picture"
+                referrerpolicy="no-referrer"
+            >
+            <div>
+                <p class="profile-label">Customer Profile</p>
+                <h1 class="profile-name">{{ current_user.name }}</h1>
+                <p class="profile-email">{{ current_user.email }}</p>
+                <p class="verification-pill {% if current_user.email_verified %}verified{% else %}unverified{% endif %}">
+                    <i class="fas {% if current_user.email_verified %}fa-circle-check{% else %}fa-triangle-exclamation{% endif %}"></i>
+                    {{ 'Email Verified' if current_user.email_verified else 'Email Not Verified' }}
+                </p>
+            </div>
+        </div>
+        <div class="profile-completion-card">
+            <p>Profile Completion</p>
+            <h2>{{ profile_completion }}%</h2>
+            <div class="completion-bar"><span></span></div>
+            <small>Complete profile details for a smoother booking process.</small>
+        </div>
+    </article>
+
+    <section class="profile-dashboard-focus">
+        <div>
+            <p class="focus-kicker">Driver Command Center</p>
+            <h2>Need your full booking overview?</h2>
+            <p>Open your dashboard to see upcoming trip details, booking status insights, and quick actions in one view.</p>
+        </div>
+        <a href="{{ url_for('dashboard') }}" class="focus-dashboard-btn">
+            <i class="fas fa-chart-line"></i>
+            Open Dashboard
+        </a>
+    </section>
+
+    <section class="profile-meta-grid">
+        <article class="profile-meta-item">
+            <span class="meta-title">Member Since</span>
+            <span class="meta-value">{{ member_since }}</span>
+            <small>{{ membership_days }} day(s) with Rent A Car</small>
+        </article>
+        <article class="profile-meta-item">
+            <span class="meta-title">Contact Number</span>
+            <span class="meta-value">{{ current_user.contact or 'Not provided yet' }}</span>
+            <small>Used for booking updates and coordination</small>
+        </article>
+        <article class="profile-meta-item">
+            <span class="meta-title">Total Paid Rentals</span>
+            <span class="meta-value">{{ total_spent_display }}</span>
+            <small>All successfully paid booking totals</small>
+        </article>
+        <article class="profile-meta-item">
+            <span class="meta-title">Average Review</span>
+            <span class="meta-value">{{ average_rating if average_rating is not none else 'No ratings yet' }}</span>
+            <small>{{ reviews_count }} review(s) submitted</small>
+        </article>
+    </section>
+
+    <section class="profile-stats-grid">
+        <article class="profile-stat-card">
+            <i class="fas fa-folder-open"></i>
+            <div>
+                <h3>{{ total_bookings }}</h3>
+                <p>Total Bookings</p>
+            </div>
+        </article>
+        <article class="profile-stat-card">
+            <i class="fas fa-circle-check"></i>
+            <div>
+                <h3>{{ approved_bookings }}</h3>
+                <p>Approved</p>
+            </div>
+        </article>
+        <article class="profile-stat-card">
+            <i class="fas fa-hourglass-half"></i>
+            <div>
+                <h3>{{ pending_bookings }}</h3>
+                <p>Pending</p>
+            </div>
+        </article>
+        <article class="profile-stat-card">
+            <i class="fas fa-flag-checkered"></i>
+            <div>
+                <h3>{{ completed_rentals }}</h3>
+                <p>Completed Rentals</p>
+            </div>
+        </article>
+    </section>
+
+    <section class="profile-detail-grid">
+        <article class="profile-activity-card">
+            <div class="panel-head">
+                <h2>Latest Booking Activity</h2>
+                <a href="{{ url_for('my_bookings') }}">View all</a>
+            </div>
+
+            {% if last_booking %}
+            <div class="latest-booking-block">
+                <h3>{{ last_booking.car.name if last_booking.car else 'Selected Car' }}</h3>
+                <p><i class="fas fa-calendar-days"></i> {{ last_booking.pickup_date.strftime('%b %d, %Y') }} - {{ last_booking.return_date.strftime('%b %d, %Y') }}</p>
+                <p><i class="fas fa-location-dot"></i> {{ last_booking.pickup_area_display or 'Pickup area pending' }}</p>
+                <div class="latest-booking-foot">
+                    <span class="booking-status-pill status-{{ (last_booking.status or 'pending')|lower }}">{{ last_booking.status }}</span>
+                    <strong>{{ last_booking.total_cost_display }}</strong>
+                </div>
+            </div>
+            {% else %}
+            <div class="empty-profile-state">
+                <i class="fas fa-car-side"></i>
+                <p>No booking activity yet.</p>
+                <a href="{{ url_for('cars_page') }}" class="meta-link">Browse available cars</a>
+            </div>
+            {% endif %}
+        </article>
+
+        <article class="profile-actions-card">
+            <div class="panel-head">
+                <h2>Quick Actions</h2>
+            </div>
+            <a href="{{ url_for('dashboard') }}" class="action-link"><i class="fas fa-chart-line"></i> Open Dashboard</a>
+            <a href="{{ url_for('book') }}" class="action-link"><i class="fas fa-calendar-plus"></i> Start New Booking</a>
+            <a href="{{ url_for('my_bookings') }}" class="action-link"><i class="fas fa-list-check"></i> Manage Existing Bookings</a>
+            <a href="{{ url_for('about_contact') }}" class="action-link"><i class="fas fa-headset"></i> Contact Support</a>
+        </article>
+    </section>
+</section>
+{% endblock %}

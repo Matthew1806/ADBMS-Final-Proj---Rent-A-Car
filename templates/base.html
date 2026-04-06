@@ -35,23 +35,24 @@
         </button>
 
         <div class="nav-menu" id="navMenu">
-            {% if not current_user.is_authenticated or not current_user.is_admin %}
+            {% if current_user.is_authenticated and not current_user.is_admin %}
+                <div class="nav-primary-group">
+                    <a href="{{ url_for('home') }}" class="{% if request.endpoint == 'home' %}active{% endif %}">Home</a>
+                    <a href="{{ url_for('cars_page') }}" class="{% if request.endpoint == 'cars_page' %}active{% endif %}">Browse Cars</a>
+                    <a href="{{ url_for('book') }}" class="{% if request.endpoint == 'book' %}active{% endif %}">Book Now</a>
+                    <a href="{{ url_for('my_bookings') }}" class="{% if request.endpoint == 'my_bookings' %}active{% endif %}">My Bookings</a>
+                    <a href="{{ url_for('about_contact') }}" class="{% if request.endpoint == 'about_contact' %}active{% endif %}">About</a>
+                </div>
+                <div class="nav-account-group">
+                    <a href="{{ url_for('profile') }}" class="{% if request.endpoint == 'profile' %}active{% endif %}">Profile</a>
+                    <a href="{{ url_for('logout') }}">Logout</a>
+                </div>
+            {% elif current_user.is_authenticated and current_user.is_admin %}
+                
+            {% else %}
                 <a href="{{ url_for('home') }}" class="{% if request.endpoint == 'home' %}active{% endif %}">Home</a>
                 <a href="{{ url_for('cars_page') }}" class="{% if request.endpoint == 'cars_page' %}active{% endif %}">Browse Cars</a>
                 <a href="{{ url_for('book') }}" class="{% if request.endpoint == 'book' %}active{% endif %}">Book Now</a>
-            {% endif %}
-
-            {% if current_user.is_authenticated %}
-                {% if current_user.is_admin %}
-                    
-                {% else %}
-                    <a href="{{ url_for('my_bookings') }}" class="{% if request.endpoint == 'my_bookings' %}active{% endif %}">My Bookings</a>
-                    <a href="{{ url_for('about_contact') }}" class="{% if request.endpoint == 'about_contact' %}active{% endif %}">About</a>
-                {% endif %}
-                {% if not current_user.is_admin %}
-                    <a href="{{ url_for('logout') }}">Logout</a>
-                {% endif %}
-            {% else %}
                 <a href="{{ url_for('about_contact') }}" class="{% if request.endpoint == 'about_contact' %}active{% endif %}">About</a>
                 <a href="{{ url_for('login') }}" class="{% if request.endpoint == 'login' %}active{% endif %}">Login</a>
                 <a href="{{ url_for('register') }}" class="navbar-getstarted-btn mobile-only">Get Started</a>
@@ -104,6 +105,7 @@
                             <a href="{{ url_for('admin_dashboard') }}">Admin Dashboard</a>
                         {% else %}
                             <a href="{{ url_for('my_bookings') }}">My Bookings</a>
+                            <a href="{{ url_for('profile') }}">Profile</a>
                             <a href="{{ url_for('about_contact') }}">About</a>
                         {% endif %}
                     {% else %}

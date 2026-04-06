@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Rent A Car{% endblock %}
+
+{% block content %}
+<section class="u-dash-shell">
+    <header class="u-dash-hero">
+        <div class="u-dash-hero-copy">
+            <p class="u-dash-kicker">Customer Dashboard</p>
+            <h1>Welcome back, {{ current_user.name.split(' ')[0] if current_user.name else 'Driver' }}.</h1>
+            <p>Track your trips, monitor payment progress, and manage your upcoming bookings in one place.</p>
+        </div>
+        <div class="u-dash-hero-actions">
+            <a href="{{ url_for('book') }}" class="u-btn u-btn-primary"><i class="fas fa-car"></i> Book a Car</a>
+            <a href="{{ url_for('my_bookings') }}" class="u-btn u-btn-ghost"><i class="fas fa-list-check"></i> View My Bookings</a>
+        </div>
+    </header>
+
+    <section class="u-dash-metrics">
+        <article class="u-metric-card">
+            <span class="u-metric-icon"><i class="fas fa-folder-open"></i></span>
+            <div>
+                <h3>{{ total_bookings }}</h3>
+                <p>Total Bookings</p>
+            </div>
+        </article>
+        <article class="u-metric-card">
+            <span class="u-metric-icon approved"><i class="fas fa-circle-check"></i></span>
+            <div>
+                <h3>{{ approved_bookings }}</h3>
+                <p>Approved Trips</p>
+            </div>
+        </article>
+        <article class="u-metric-card">
+            <span class="u-metric-icon pending"><i class="fas fa-hourglass-half"></i></span>
+            <div>
+                <h3>{{ pending_bookings }}</h3>
+                <p>Pending Requests</p>
+            </div>
+        </article>
+        <article class="u-metric-card">
+            <span class="u-metric-icon money"><i class="fas fa-wallet"></i></span>
+            <div>
+                <h3>{{ total_spent_display }}</h3>
+                <p>Total Paid</p>
+            </div>
+        </article>
+    </section>
+
+    {% if upcoming_booking %}
+    <section class="u-next-trip-card">
+        <div>
+            <p class="u-next-trip-title">Next Trip</p>
+            <h2>{{ upcoming_booking.car.name if upcoming_booking.car else 'Your Selected Car' }}</h2>
+            <p class="u-next-trip-subtitle">
+                {{ upcoming_booking.pickup_date.strftime('%b %d, %Y') }} - {{ upcoming_booking.return_date.strftime('%b %d, %Y') }}
+                · {{ upcoming_booking.rental_days }} day(s)
+            </p>
+            <p class="u-next-trip-meta">
+                <i class="fas fa-location-dot"></i> {{ upcoming_booking.pickup_area_display or 'Pickup area to be confirmed' }}
+                <span>•</span>
+                <i class="fas fa-receipt"></i> {{ upcoming_booking.total_cost_display }}
+            </p>
+        </div>
+        <a href="{{ url_for('edit_booking', booking_id=upcoming_booking.id) }}" class="u-btn u-btn-light">Manage Booking</a>
+    </section>
+    {% endif %}
+
+    <section class="u-dash-panel">
+        <div class="u-panel-head">
+            <h2>Recent Bookings</h2>
+            <a href="{{ url_for('my_bookings') }}" class="u-link-arrow">See Full History <i class="fas fa-arrow-right"></i></a>
+        </div>
+
+        {% if recent_bookings %}
+        <div class="u-booking-grid">
+            {% for booking in recent_bookings %}
+            <article class="u-booking-card">
+                <div class="u-booking-top">
+                    <h3>{{ booking.car.name if booking.car else 'Selected Car' }}</h3>
+                    <span class="u-badge status-{{ (booking.status or 'pending')|lower }}">{{ booking.status }}</span>
+                </div>
+                <p class="u-booking-date"><i class="fas fa-calendar-days"></i> {{ booking.pickup_date.strftime('%b %d, %Y') }} - {{ booking.return_date.strftime('%b %d, %Y') }}</p>
+                <p class="u-booking-area"><i class="fas fa-location-dot"></i> {{ booking.pickup_area_display or 'Not specified' }}</p>
+                <div class="u-booking-bottom">
+                    <span class="u-badge pay-{{ (booking.payment_status or 'unpaid')|lower }}">{{ booking.payment_status }}</span>
+                    <strong>{{ booking.total_cost_display }}</strong>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="u-empty-panel">
+            <i class="fas fa-car-side"></i>
+            <h3>No bookings yet</h3>
+            <p>Start your first reservation and your activity will appear here.</p>
+            <a href="{{ url_for('cars_page') }}" class="u-btn u-btn-primary">Browse Cars</a>
+        </div>
+        {% endif %}
+    </section>
+
+    <section class="u-dash-panel">
+        <div class="u-panel-head">
+            <h2>Quick Actions</h2>
+        </div>
+        <div class="u-quick-grid">
+            <a href="{{ url_for('cars_page') }}" class="u-quick-card">
+                <i class="fas fa-magnifying-glass"></i>
+                <span>Browse Cars</span>
+            </a>
+            <a href="{{ url_for('book') }}" class="u-quick-card">
+                <i class="fas fa-calendar-plus"></i>
+                <span>Book Now</span>
+            </a>
+            <a href="{{ url_for('my_bookings') }}" class="u-quick-card">
+                <i class="fas fa-receipt"></i>
+                <span>Booking Records</span>
+            </a>
+            <a href="{{ url_for('profile') }}" class="u-quick-card">
+                <i class="fas fa-user-gear"></i>
+                <span>Account Profile</span>
+            </a>
+        </div>
+    </section>
+</section>
+{% endblock %}

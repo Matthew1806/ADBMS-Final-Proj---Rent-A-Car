@@ -22,7 +22,9 @@
 @import url('./rate.css');
 
 /* User Pages */
+@import url('./dashboard.css');
 @import url('./my_bookings.css');
+@import url('./profile.css');
 @import url('./edit_booking.css');
 
 /* Admin Pages */

@@ -1,4 +1,4 @@
-﻿/* ========================================
+/* ========================================
    ABOUT_CONTACT.HTML STYLES
    ======================================== */
 
@@ -40,6 +40,7 @@
     margin: 0 0 10px;
     font-size: clamp(1.9rem, 3.2vw, 2.7rem);
     line-height: 1.12;
+    color: #ffffff;
 }
 
 .lead {
@@ -87,6 +88,7 @@
 
 .about-highlight-card h3 {
     margin: 0 0 6px;
+    color: #ffffff;
 }
 
 .about-highlight-card ul {
@@ -152,12 +154,24 @@
 
 .contact-layout {
     display: grid;
-    grid-template-columns: minmax(280px, 1fr) minmax(0, 1.4fr);
+    grid-template-columns: 1fr;
     gap: 12px;
 }
 
+.contact-top-grid {
+    display: grid;
+    grid-template-columns: minmax(320px, 1fr) minmax(0, 1.35fr);
+    gap: 12px;
+    align-items: start;
+}
+
+.contact-card {
+    height: auto;
+}
+
 .contact-card h3,
-.contact-map h3 {
+.contact-map h3,
+.contact-form-card h3 {
     margin: 0 0 10px;
     color: #1f3258;
 }
@@ -170,6 +184,10 @@
     font-size: 0.9rem;
 }
 
+.contact-card .info-item:last-child {
+    margin-bottom: 0;
+}
+
 .info-item i {
     color: #cb4b3b;
     margin-top: 3px;
@@ -179,42 +197,124 @@
     color: #1b2b45;
 }
 
+.contact-form-subtext {
+    margin: 0 0 12px;
+    color: #5f7089;
+    font-size: 0.9rem;
+}
+
+.contact-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.form-field {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.form-field label {
+    font-size: 0.82rem;
+    color: #354a6b;
+    font-weight: 700;
+}
+
+.form-field input,
+.form-field textarea {
+    width: 100%;
+    border: 1px solid #d6e2f0;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 0.92rem;
+    color: #20314f;
+    font-family: inherit;
+    background: #fbfdff;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-field input:focus,
+.form-field textarea:focus {
+    outline: none;
+    border-color: #cb4b3b;
+    box-shadow: 0 0 0 3px rgba(203, 75, 59, 0.13);
+}
+
+.form-field textarea {
+    resize: vertical;
+    min-height: 120px;
+}
+
+.contact-submit-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 0;
+    border-radius: 999px;
+    background: linear-gradient(120deg, #cb4b3b, #e37e61);
+    color: #fff;
+    font-weight: 800;
+    padding: 11px 18px;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.contact-submit-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 22px rgba(203, 75, 59, 0.26);
+}
+
 .map-wrap {
     width: 100%;
-    height: 380px;
+    height: 360px;
     border-radius: 10px;
     overflow: hidden;
-    display: block;
 }
 
 .map-wrap iframe {
     width: 100%;
-    height: 100%;
+    height: 360px;
     border: 0;
     display: block;
 }
 
-@media (max-width: 920px) {
+.contact-form-card {
+    width: 100%;
+    max-width: 980px;
+    margin: 0 auto;
+}
+
+@media (max-width: 980px) {
     .about-hero-grid,
-    .contact-layout {
+    .contact-top-grid {
         grid-template-columns: 1fr;
+    }
+
+    .contact-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .map-wrap {
+        height: 320px;
+    }
+
+    .map-wrap iframe {
+        height: 320px;
     }
 }
 
 @media (max-width: 700px) {
     .about-hero-section,
     .about-section-block,
-    .about-polici28px 14px;
+    .about-policies-section,
+    .contact-section {
+        padding: 28px 14px;
     }
 
     .about-hero-grid {
         padding: 18px;
         border-radius: 14px;
-    }
-
-    .map-wrap {
-        height: 30
-    .map-wrap {
-        min-height: 280px;
     }
 }
