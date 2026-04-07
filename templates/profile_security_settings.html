@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+
+{% block title %}Security Settings - Rent A Car{% endblock %}
+
+{% block content %}
+<section class="profile-shell profile-settings-shell">
+    <header class="profile-hero" style="--profile-completion: {{ profile_completion }}%;">
+        <div class="profile-identity-block">
+            <img
+                class="profile-avatar"
+                src="{{ current_user.profile_picture or url_for('static', filename='images/header/RentACarLogo.png') }}"
+                alt="{{ current_user.name }} profile picture"
+                referrerpolicy="no-referrer"
+            >
+            <div class="profile-identity-copy">
+                <p class="profile-role-kicker">Security Settings</p>
+                <h1>{{ current_user.name }}</h1>
+                <p>{{ current_user.email }}</p>
+                <span class="profile-status-pill {% if current_user.email_verified %}is-verified{% else %}is-unverified{% endif %}">
+                    <i class="fas {% if current_user.email_verified %}fa-circle-check{% else %}fa-circle-exclamation{% endif %}"></i>
+                    {{ 'Verified account' if current_user.email_verified else 'Verification needed' }}
+                </span>
+            </div>
+        </div>
+        <div class="profile-completion-card">
+            <p>Profile completion</p>
+            <strong>{{ profile_completion }}%</strong>
+            <div class="profile-progress-track" role="img" aria-label="Profile completion {{ profile_completion }} percent">
+                <span class="profile-progress-bar"></span>
+            </div>
+            <small>Secure your account to protect bookings and updates.</small>
+        </div>
+    </header>
+
+    <section class="profile-card profile-settings-redirect-card">
+        <div class="card-head">
+            <h2>Settings Navigation</h2>
+            <a href="{{ url_for('profile') }}">Back to Profile</a>
+        </div>
+        <div class="profile-settings-quick-links">
+            <a href="{{ url_for('profile_settings') }}" class="profile-inline-action">Go to Completion Checklist</a>
+            <a href="{{ url_for('profile_settings_account') }}" class="profile-inline-action">Go to Account Settings</a>
+        </div>
+    </section>
+
+    <article class="profile-card profile-security-card" id="profile-security-settings">
+        <div class="card-head">
+            <h2>Security</h2>
+        </div>
+        <p class="security-page-intro">Update your password regularly to keep your account and booking details protected.</p>
+        <div class="security-activity-block">
+            <p><strong>Recent Login:</strong> {{ last_login_at.strftime('%b %d, %Y %I:%M %p') if last_login_at else 'No login history yet' }}</p>
+            <p><strong>Email Status:</strong> {{ 'Verified' if current_user.email_verified else 'Not verified' }}</p>
+        </div>
+        <form method="post" action="{{ url_for('change_profile_password') }}" class="profile-form-grid security-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label>
+                Current Password
+                <div class="profile-password-field">
+                    <input type="password" name="current_password" minlength="8" required>
+                    <button type="button" class="profile-password-toggle" data-toggle-password aria-label="Show current password">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </label>
+            <label>
+                New Password
+                <div class="profile-password-field">
+                    <input type="password" name="new_password" minlength="8" required>
+                    <button type="button" class="profile-password-toggle" data-toggle-password aria-label="Show new password">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </label>
+            <label>
+                Confirm New Password
+                <div class="profile-password-field">
+                    <input type="password" name="confirm_password" minlength="8" required>
+                    <button type="button" class="profile-password-toggle" data-toggle-password aria-label="Show confirm password">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </label>
+            <p class="profile-field-note">Use at least 8 characters and avoid reusing your old password.</p>
+            <div class="profile-security-actions">
+                <button type="submit" class="profile-primary-btn">
+                    <i class="fas fa-shield-halved"></i>
+                    Change Password
+                </button>
+                <a href="{{ url_for('logout') }}" class="profile-ghost-btn">
+                    <i class="fas fa-right-from-bracket"></i>
+                    Logout Session
+                </a>
+            </div>
+        </form>
+    </article>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const toggleButtons = document.querySelectorAll('[data-toggle-password]');
+
+    toggleButtons.forEach(function (button) {
+        button.addEventListener('click', function () {
+            const fieldWrap = button.closest('.profile-password-field');
+            const input = fieldWrap ? fieldWrap.querySelector('input') : null;
+
+            if (!input) {
+                return;
+            }
+
+            const willShow = input.type === 'password';
+            input.type = willShow ? 'text' : 'password';
+            button.innerHTML = willShow ? '<i class="fas fa-eye-slash"></i>' : '<i class="fas fa-eye"></i>';
+            button.setAttribute('aria-label', willShow ? 'Hide password' : 'Show password');
+        });
+    });
+});
+</script>
+{% endblock %}

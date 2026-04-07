@@ -171,6 +171,17 @@ def build_gmail_search_url(search_query):
         return 'https://mail.google.com/mail/u/0/#inbox'
     return f"https://mail.google.com/mail/u/0/#search/{quote(query)}"
 
+
+def build_gmail_compose_url(to_email, subject='', body=''):
+    """Build a Gmail compose URL so customer can reply directly via Gmail."""
+    recipient = (to_email or '').strip()
+    if not recipient:
+        return 'https://mail.google.com/mail/u/0/#inbox'
+
+    subject_part = quote(subject or '')
+    body_part = quote(body or '')
+    return f"https://mail.google.com/mail/u/0/?view=cm&fs=1&to={quote(recipient)}&su={subject_part}&body={body_part}"
+
 # Helper Functions
 def allowed_file(filename):
     """Check if the uploaded file has an allowed extension."""
@@ -196,12 +207,16 @@ def inject_admin_support_counts():
     if current_user.is_authenticated:
         try:
             if current_user.is_admin:
-                admin_unreplied_support_count = SupportConcern.query.filter(SupportConcern.admin_reply.is_(None)).count()
+                admin_unreplied_support_count = SupportConcern.query.filter(
+                    SupportConcern.admin_reply.is_(None),
+                    SupportConcern.is_archived.is_(False)
+                ).count()
             else:
                 user_email = (current_user.email or '').strip().lower()
                 user_unread_support_reply_count = SupportConcern.query.filter(
                     or_(SupportConcern.user_id == current_user.id, func.lower(SupportConcern.email) == user_email),
                     SupportConcern.admin_reply.isnot(None),
+                    SupportConcern.is_archived.is_(False),
                     SupportConcern.user_has_seen_reply.is_(False)
                 ).count()
         except Exception:
@@ -306,6 +321,18 @@ def ensure_user_otp_columns():
         db.session.execute(text("ALTER TABLE `user` ADD COLUMN otp_expires_at DATETIME NULL AFTER otp"))
         db.session.commit()
 
+
+def ensure_user_last_login_column():
+    """Add user.last_login_at column for login activity display in profile security section."""
+    inspector = inspect(db.engine)
+    if not inspector.has_table('user'):
+        return
+
+    column_names = {column['name'] for column in inspector.get_columns('user')}
+    if 'last_login_at' not in column_names:
+        db.session.execute(text("ALTER TABLE `user` ADD COLUMN last_login_at DATETIME NULL AFTER created_at"))
+        db.session.commit()
+
 def ensure_booking_pickup_area_column():
     """Add booking.pickup_area column for older databases that were created before this field existed."""
     inspector = inspect(db.engine)
@@ -323,6 +350,24 @@ def ensure_support_concerns_table():
     inspector = inspect(db.engine)
     if not inspector.has_table('support_concern'):
         SupportConcern.__table__.create(bind=db.engine, checkfirst=True)
+
+
+def ensure_support_concern_archive_columns():
+    """Add support concern archive columns for older databases."""
+    inspector = inspect(db.engine)
+    if not inspector.has_table('support_concern'):
+        return
+
+    column_names = {column['name'] for column in inspector.get_columns('support_concern')}
+    if 'is_archived' not in column_names:
+        db.session.execute(text("ALTER TABLE support_concern ADD COLUMN is_archived TINYINT(1) NOT NULL DEFAULT 0 AFTER user_has_seen_reply"))
+        db.session.commit()
+    if 'archived_at' not in column_names:
+        db.session.execute(text("ALTER TABLE support_concern ADD COLUMN archived_at DATETIME NULL AFTER is_archived"))
+        db.session.commit()
+    if 'archived_by_admin_id' not in column_names:
+        db.session.execute(text("ALTER TABLE support_concern ADD COLUMN archived_by_admin_id INTEGER NULL AFTER archived_at"))
+        db.session.commit()
 
 def split_legacy_pickup_area(notes_text):
     """Split legacy merged notes that start with 'Pick-up Area: ...' into (pickup_area, notes)."""
@@ -358,8 +403,10 @@ with app.app_context():
     ensure_user_firebase_columns()
     ensure_user_email_verification_columns()
     ensure_user_otp_columns()
+    ensure_user_last_login_column()
     ensure_booking_pickup_area_column()
     ensure_support_concerns_table()
+    ensure_support_concern_archive_columns()
 
 # Public Routes
 @app.route('/')
@@ -506,17 +553,20 @@ def about_contact():
         admin_emails = [addr for addr in app.config.get('ADMIN_EMAILS', set()) if addr and '@' in addr]
         # For Gmail SMTP reliability, sender should match the authenticated mailbox.
         mail_sender = app.config.get('MAIL_USERNAME') or app.config.get('MAIL_FROM')
-        recipient_candidates = [app.config.get('MAIL_USERNAME'), app.config.get('MAIL_FROM')] + admin_emails
-        recipients = [addr for addr in dict.fromkeys(recipient_candidates) if addr]
+        primary_recipient = (admin_emails[0] if admin_emails else app.config.get('MAIL_USERNAME') or app.config.get('MAIL_FROM') or '').strip()
+        recipient_candidates = [app.config.get('MAIL_USERNAME')] + admin_emails
+        hidden_recipients = [addr for addr in dict.fromkeys(recipient_candidates) if addr and addr.lower() != primary_recipient.lower()]
 
-        if not app.config.get('MAIL_SERVER') or not recipients or not mail_sender:
+        if not app.config.get('MAIL_SERVER') or not primary_recipient or not mail_sender:
             flash('Your concern was submitted successfully. Our admin team will review it soon.', 'success')
             return redirect(url_for('about_contact'))
 
         email_message = EmailMessage()
         email_message['Subject'] = f"[Rent A Car Contact #{concern.id}] {subject}"
         email_message['From'] = mail_sender
-        email_message['To'] = ', '.join(recipients)
+        email_message['To'] = primary_recipient
+        if hidden_recipients:
+            email_message['Bcc'] = ', '.join(hidden_recipients)
         email_message['Reply-To'] = email
         email_message.set_content(
             f"New customer concern from About page\n\n"
@@ -524,7 +574,8 @@ def about_contact():
             f"Name: {name}\n"
             f"Email: {email}\n"
             f"Subject: {subject}\n\n"
-            f"Message:\n{message}\n"
+            f"Message:\n{message}\n\n"
+            "For synced customer notifications, reply from Admin Portal > Support instead of email reply.\n"
         )
 
         try:
@@ -655,7 +706,7 @@ def login():
     form = LoginForm()
 
     if current_user.is_authenticated:
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('admin_dashboard' if current_user.is_admin else 'home'))
 
     next_path = sanitize_next_path(request.args.get('next', '') or request.form.get('next', ''))
 
@@ -672,11 +723,18 @@ def login():
             flash('Please verify your email first. Check your email for the verification code.', 'warning')
             return redirect(url_for('verify_otp_page', email=email))
 
+        user.last_login_at = datetime.utcnow()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            app.logger.exception('Failed to store last login timestamp for user %s', user.id)
+
         login_user(user)
         flash('Logged in successfully!', 'success')
         if next_path:
             return redirect(next_path)
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('admin_dashboard' if user.is_admin else 'home'))
 
     return render_template('login.html', form=form, next_path=next_path)
 
@@ -684,7 +742,7 @@ def login():
 def register():
     """User registration page."""
     if current_user.is_authenticated:
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('admin_dashboard' if current_user.is_admin else 'home'))
 
     form = RegistrationForm()
 
@@ -854,79 +912,58 @@ def logout():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    """User dashboard with booking insights and quick actions."""
+    """Legacy user dashboard endpoint retained for compatibility."""
     if current_user.is_admin:
         return redirect(url_for('admin_dashboard'))
+    return redirect(url_for('profile'))
 
-    bookings = Booking.query.filter_by(user_id=current_user.id).order_by(Booking.submitted_at.desc()).all()
-    status_counts = Counter((booking.status or 'Pending') for booking in bookings)
-    total_spent = 0.0
 
-    for booking in bookings:
-        try:
-            rental_days = (booking.return_date - booking.pickup_date).days + 1
-            if rental_days < 1:
-                rental_days = 1
-        except Exception:
-            rental_days = 1
+def build_profile_checklist(user):
+    """Build reusable checklist items for profile settings completion."""
+    return [
+        {
+            'label': 'Full name is set',
+            'done': bool((user.name or '').strip()),
+            'action_label': 'Update Name',
+            'action_href': url_for('profile_settings_account')
+        },
+        {
+            'label': 'Contact number is set',
+            'done': bool((user.contact or '').strip()),
+            'action_label': 'Add Contact',
+            'action_href': url_for('profile_settings_account')
+        },
+        {
+            'label': 'Email is verified',
+            'done': bool(user.email_verified),
+            'action_label': 'Verify Email',
+            'action_href': url_for('profile_settings_security')
+        },
+        {
+            'label': 'Profile photo uploaded',
+            'done': bool((user.profile_picture or '').strip()),
+            'action_label': 'Upload Photo',
+            'action_href': url_for('profile_settings_photo')
+        }
+    ]
 
-        unit_price = parse_price(booking.car.price if booking.car else '')
-        booking.rental_days = rental_days
-        booking.total_cost = round(unit_price * rental_days, 2)
-        booking.total_cost_display = format_peso(booking.total_cost)
-        pickup_area_display, notes_display = get_booking_display_pickup_area_and_notes(booking)
-        booking.pickup_area_display = pickup_area_display
-        booking.notes_display = notes_display
 
-        if (booking.payment_status or '').lower() == 'paid':
-            total_spent += booking.total_cost
-
-    today = date.today()
-    upcoming_booking = Booking.query.filter_by(user_id=current_user.id).filter(
-        Booking.pickup_date >= today,
-        Booking.status.in_(['Pending', 'Approved'])
-    ).order_by(Booking.pickup_date.asc()).first()
-
-    if upcoming_booking:
-        try:
-            rental_days = (upcoming_booking.return_date - upcoming_booking.pickup_date).days + 1
-            if rental_days < 1:
-                rental_days = 1
-        except Exception:
-            rental_days = 1
-
-        unit_price = parse_price(upcoming_booking.car.price if upcoming_booking.car else '')
-        upcoming_booking.rental_days = rental_days
-        upcoming_booking.total_cost = round(unit_price * rental_days, 2)
-        upcoming_booking.total_cost_display = format_peso(upcoming_booking.total_cost)
-        pickup_area_display, notes_display = get_booking_display_pickup_area_and_notes(upcoming_booking)
-        upcoming_booking.pickup_area_display = pickup_area_display
-        upcoming_booking.notes_display = notes_display
-
-    return render_template(
-        'dashboard.html',
-        total_bookings=len(bookings),
-        approved_bookings=status_counts.get('Approved', 0),
-        pending_bookings=status_counts.get('Pending', 0),
-        completed_bookings=status_counts.get('Completed', 0) + status_counts.get('Returned', 0),
-        rejected_bookings=status_counts.get('Rejected', 0),
-        total_spent_display=format_peso(total_spent),
-        recent_bookings=bookings[:5],
-        upcoming_booking=upcoming_booking
-    )
+def get_profile_completion_data(user):
+    """Return consistent completion percentage and checklist details."""
+    profile_checklist = build_profile_checklist(user)
+    total_items = len(profile_checklist)
+    completed_items = sum(1 for item in profile_checklist if item['done'])
+    profile_completion = int((completed_items / total_items) * 100) if total_items else 0
+    return profile_completion, profile_checklist
 
 
 @app.route('/profile')
 @login_required
 def profile():
-    """User profile page with account and rental activity summary."""
+    """User profile page focused on personal summary and support updates."""
+
     user_bookings = Booking.query.filter_by(user_id=current_user.id).order_by(Booking.submitted_at.desc()).all()
     reviews = Review.query.filter_by(user_id=current_user.id).all()
-
-    total_bookings = len(user_bookings)
-    approved_bookings = len([booking for booking in user_bookings if booking.status == 'Approved'])
-    pending_bookings = len([booking for booking in user_bookings if booking.status == 'Pending'])
-    completed_rentals = len([booking for booking in user_bookings if booking.status in ['Completed', 'Returned']])
 
     total_spent = 0.0
     for booking in user_bookings:
@@ -947,19 +984,7 @@ def profile():
     reviews_count = len(reviews)
     average_rating = round(sum(review.rating for review in reviews) / reviews_count, 1) if reviews_count else None
 
-    completion_checks = [
-        bool(current_user.name),
-        bool(current_user.email),
-        bool(current_user.contact),
-        bool(current_user.email_verified)
-    ]
-    profile_completion = int((sum(1 for check in completion_checks if check) / len(completion_checks)) * 100)
-
-    last_booking = user_bookings[0] if user_bookings else None
-    if last_booking:
-        pickup_area_display, notes_display = get_booking_display_pickup_area_and_notes(last_booking)
-        last_booking.pickup_area_display = pickup_area_display
-        last_booking.notes_display = notes_display
+    profile_completion, profile_checklist = get_profile_completion_data(current_user)
 
     member_since = current_user.created_at.strftime('%B %d, %Y') if current_user.created_at else 'Recently'
     membership_days = (date.today() - current_user.created_at.date()).days if current_user.created_at else 0
@@ -971,32 +996,202 @@ def profile():
     ).order_by(SupportConcern.admin_replied_at.desc()).all()
 
     unread_support_replies = [concern for concern in replied_support_concerns if not concern.user_has_seen_reply]
-    latest_support_replies = replied_support_concerns[:3]
-    primary_support_reply = unread_support_replies[0] if unread_support_replies else (latest_support_replies[0] if latest_support_replies else None)
+    latest_support_replies = replied_support_concerns[:2]
 
     return render_template(
         'profile.html',
-        total_bookings=total_bookings,
-        approved_bookings=approved_bookings,
-        pending_bookings=pending_bookings,
-        completed_rentals=completed_rentals,
         total_spent_display=format_peso(total_spent),
         reviews_count=reviews_count,
         average_rating=average_rating,
         profile_completion=profile_completion,
         member_since=member_since,
         membership_days=membership_days,
-        last_booking=last_booking,
         unread_support_reply_count=len(unread_support_replies),
-        latest_support_replies=latest_support_replies,
-        primary_support_reply=primary_support_reply
+        latest_support_replies=latest_support_replies
     )
+
+
+@app.route('/profile/settings')
+@login_required
+def profile_settings():
+    """Settings overview page with completion checklist and navigation."""
+    profile_completion, profile_checklist = get_profile_completion_data(current_user)
+
+    return render_template(
+        'profile_settings.html',
+        profile_completion=profile_completion,
+        profile_checklist=profile_checklist,
+        last_login_at=current_user.last_login_at
+    )
+
+
+@app.route('/profile/settings/account')
+@login_required
+def profile_settings_account():
+    """Dedicated page for account profile fields."""
+    profile_completion, profile_checklist = get_profile_completion_data(current_user)
+    return render_template(
+        'profile_account_settings.html',
+        profile_completion=profile_completion,
+        profile_checklist=profile_checklist
+    )
+
+
+@app.route('/profile/settings/security')
+@login_required
+def profile_settings_security():
+    """Dedicated page for security tools and password update."""
+    profile_completion, profile_checklist = get_profile_completion_data(current_user)
+    return render_template(
+        'profile_security_settings.html',
+        profile_completion=profile_completion,
+        profile_checklist=profile_checklist,
+        last_login_at=current_user.last_login_at
+    )
+
+
+@app.route('/profile/settings/photo')
+@login_required
+def profile_settings_photo():
+    """Dedicated page for profile photo upload only."""
+    profile_completion, profile_checklist = get_profile_completion_data(current_user)
+    return render_template(
+        'profile_photo_settings.html',
+        profile_completion=profile_completion,
+        profile_checklist=profile_checklist
+    )
+
+
+@app.route('/profile/update', methods=['POST'])
+@login_required
+def update_profile_account():
+    """Update profile identity fields and optional profile photo."""
+    name = ' '.join((request.form.get('name') or '').strip().split())
+    contact = (request.form.get('contact') or '').strip()
+    profile_file = request.files.get('profile_picture')
+
+    if len(name) < 2:
+        flash('Please enter a valid full name (at least 2 characters).', 'warning')
+        return redirect(url_for('profile_settings_account'))
+
+    if contact and not re.fullmatch(r'^(\+63|0)\d{10}$', contact):
+        flash('Contact number must use PH format like 09XXXXXXXXX or +63XXXXXXXXXX.', 'warning')
+        return redirect(url_for('profile_settings_account'))
+
+    if profile_file and profile_file.filename:
+        extension = profile_file.filename.rsplit('.', 1)[-1].lower() if '.' in profile_file.filename else ''
+        allowed_image_ext = {'jpg', 'jpeg', 'png', 'webp'}
+        if extension not in allowed_image_ext:
+            flash('Profile photo must be JPG, JPEG, PNG, or WEBP format.', 'warning')
+            return redirect(url_for('profile_settings_account'))
+
+        profile_file.stream.seek(0, os.SEEK_END)
+        file_size = profile_file.stream.tell()
+        profile_file.stream.seek(0)
+        if file_size > 2 * 1024 * 1024:
+            flash('Profile photo must be 2MB or smaller.', 'warning')
+            return redirect(url_for('profile_settings_account'))
+
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+        filename = secure_filename(f"profile_{current_user.id}_{int(datetime.utcnow().timestamp())}.{extension}")
+        save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        profile_file.save(save_path)
+        current_user.profile_picture = f"/static/images/uploads/{filename}"
+
+    current_user.name = name
+    current_user.contact = contact or None
+
+    try:
+        db.session.commit()
+        flash('Profile details updated successfully.', 'success')
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Failed to update profile for user %s', current_user.id)
+        flash('Could not update profile right now. Please try again.', 'danger')
+
+    return redirect(url_for('profile_settings_account'))
+
+
+@app.route('/profile/update-photo', methods=['POST'])
+@login_required
+def update_profile_photo():
+    """Update only the current user's profile photo."""
+    profile_file = request.files.get('profile_picture')
+
+    if not profile_file or not profile_file.filename:
+        flash('Please choose a photo before uploading.', 'warning')
+        return redirect(url_for('profile_settings_photo'))
+
+    extension = profile_file.filename.rsplit('.', 1)[-1].lower() if '.' in profile_file.filename else ''
+    allowed_image_ext = {'jpg', 'jpeg', 'png', 'webp'}
+    if extension not in allowed_image_ext:
+        flash('Profile photo must be JPG, JPEG, PNG, or WEBP format.', 'warning')
+        return redirect(url_for('profile_settings_photo'))
+
+    profile_file.stream.seek(0, os.SEEK_END)
+    file_size = profile_file.stream.tell()
+    profile_file.stream.seek(0)
+    if file_size > 2 * 1024 * 1024:
+        flash('Profile photo must be 2MB or smaller.', 'warning')
+        return redirect(url_for('profile_settings_photo'))
+
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    filename = secure_filename(f"profile_{current_user.id}_{int(datetime.utcnow().timestamp())}.{extension}")
+    save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    profile_file.save(save_path)
+    current_user.profile_picture = f"/static/images/uploads/{filename}"
+
+    try:
+        db.session.commit()
+        flash('Profile photo updated successfully.', 'success')
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Failed to update profile photo for user %s', current_user.id)
+        flash('Could not update profile photo right now. Please try again.', 'danger')
+
+    return redirect(url_for('profile_settings_photo'))
+
+
+@app.route('/profile/change-password', methods=['POST'])
+@login_required
+def change_profile_password():
+    """Change the current user's account password from profile security section."""
+    current_password = request.form.get('current_password', '')
+    new_password = request.form.get('new_password', '')
+    confirm_password = request.form.get('confirm_password', '')
+
+    if not check_password_hash(current_user.password, current_password):
+        flash('Current password is incorrect.', 'danger')
+        return redirect(url_for('profile_settings_security'))
+
+    if len(new_password) < 8:
+        flash('New password must be at least 8 characters long.', 'warning')
+        return redirect(url_for('profile_settings_security'))
+
+    if new_password != confirm_password:
+        flash('New password and confirmation do not match.', 'warning')
+        return redirect(url_for('profile_settings_security'))
+
+    if check_password_hash(current_user.password, new_password):
+        flash('Please use a different password from your current one.', 'warning')
+        return redirect(url_for('profile_settings_security'))
+
+    current_user.password = generate_password_hash(new_password, method='pbkdf2:sha256')
+    try:
+        db.session.commit()
+        flash('Password changed successfully.', 'success')
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Failed to change password for user %s', current_user.id)
+        flash('Could not change password right now. Please try again.', 'danger')
+
+    return redirect(url_for('profile_settings_security'))
 
 
 @app.route('/profile/support-replies/<int:concern_id>/open')
 @login_required
 def open_support_reply(concern_id):
-    """Mark a support reply as seen then open Gmail search for the reply subject."""
+    """Mark a support reply as seen then open Gmail compose for customer reply."""
     concern = SupportConcern.query.get_or_404(concern_id)
 
     user_email = (current_user.email or '').strip().lower()
@@ -1012,12 +1207,15 @@ def open_support_reply(concern_id):
     concern.user_has_seen_reply = True
     db.session.commit()
 
-    mail_sender = app.config.get('MAIL_FROM') or app.config.get('MAIL_USERNAME') or ''
-    search_query = f'"Rent A Car Support Reply #{concern.id}"'
-    if mail_sender:
-        search_query = f'{search_query} from:{mail_sender}'
+    support_email = (app.config.get('MAIL_USERNAME') or app.config.get('MAIL_FROM') or '').strip()
+    reply_subject = f"Re: [Rent A Car Support Reply #{concern.id}] {concern.subject}"
+    reply_body = (
+        f"Hello Support Team,\n\n"
+        f"This is my follow-up regarding ticket #{concern.id}.\n\n"
+        f"My reply:\n"
+    )
 
-    return redirect(build_gmail_search_url(search_query))
+    return redirect(build_gmail_compose_url(support_email, reply_subject, reply_body))
 
 
 @app.route('/profile/notifications')
@@ -1053,6 +1251,36 @@ def profile_notifications():
         unread_count=unread_count,
         read_count=read_count
     )
+
+
+@app.route('/profile/notifications/mark-all-read', methods=['POST'])
+@login_required
+def mark_all_profile_notifications_read():
+    """Mark all unread support replies as read for the current user."""
+    user_email = (current_user.email or '').strip().lower()
+    unread_replies = SupportConcern.query.filter(
+        or_(SupportConcern.user_id == current_user.id, func.lower(SupportConcern.email) == user_email),
+        SupportConcern.admin_reply.isnot(None),
+        SupportConcern.user_has_seen_reply.is_(False)
+    ).all()
+
+    if not unread_replies:
+        flash('No unread support replies found.', 'info')
+        return redirect(url_for('profile_notifications'))
+
+    for concern in unread_replies:
+        concern.user_has_seen_reply = True
+
+    try:
+        db.session.commit()
+        reply_word = 'reply' if len(unread_replies) == 1 else 'replies'
+        flash(f'Marked {len(unread_replies)} support {reply_word} as read.', 'success')
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Failed to mark all support replies as read for user %s', current_user.id)
+        flash('Could not update notifications right now. Please try again.', 'danger')
+
+    return redirect(url_for('profile_notifications'))
 
 # Booking Routes
 @app.route('/book', methods=['GET', 'POST'])
@@ -1670,12 +1898,12 @@ def admin_add_car():
             # Validate that image is provided
             if not form.image.data:
                 flash('Car image is required!', 'danger')
-                return render_template('admin_car_form.html', form=form, title='Add Car')
+                return render_template('admin_car_form.html', form=form, title='Add Car', is_edit=False)
             
             # Validate image file type
             if not allowed_file(form.image.data.filename):
                 flash('Invalid file type. Only PNG, JPG, JPEG, GIF are allowed.', 'danger')
-                return render_template('admin_car_form.html', form=form, title='Add Car')
+                return render_template('admin_car_form.html', form=form, title='Add Car', is_edit=False)
             
             # Handle main image upload
             image_filename = secure_filename(form.image.data.filename)
@@ -1704,7 +1932,7 @@ def admin_add_car():
                 for error in errors:
                     flash(f'{field}: {error}', 'danger')
     
-    return render_template('admin_car_form.html', form=form, title='Add Car')
+    return render_template('admin_car_form.html', form=form, title='Add Car', is_edit=False)
 
 @app.route('/admin/cars/<int:car_id>/edit', methods=['GET', 'POST'])
 @admin_required
@@ -1714,8 +1942,12 @@ def admin_edit_car(car_id):
     form = CarForm(obj=car)
     
     if form.validate_on_submit():
-        # Handle main image upload if new
-        if form.image.data and allowed_file(form.image.data.filename):
+        # Handle main image upload if a new image is provided.
+        if form.image.data and form.image.data.filename:
+            if not allowed_file(form.image.data.filename):
+                flash('Invalid file type. Only PNG, JPG, JPEG, GIF are allowed.', 'danger')
+                return render_template('admin_car_form.html', form=form, title='Edit Car', car=car, is_edit=True)
+
             image_filename = secure_filename(form.image.data.filename)
             form.image.data.save(os.path.join(app.config['IMAGES_FOLDER'], 'cars', image_filename))
             car.image = f"images/cars/{image_filename}"
@@ -1734,7 +1966,7 @@ def admin_edit_car(car_id):
         flash('Car updated successfully!', 'success')
         return redirect(url_for('admin_cars'))
     
-    return render_template('admin_car_form.html', form=form, title='Edit Car', car=car)
+    return render_template('admin_car_form.html', form=form, title='Edit Car', car=car, is_edit=True)
 
 @app.route('/admin/cars/<int:car_id>/delete', methods=['POST'])
 @admin_required
@@ -1850,15 +2082,38 @@ def admin_support():
     status_filter = (request.args.get('status') or 'all').strip().lower()
     concerns_query = SupportConcern.query.order_by(SupportConcern.created_at.desc())
 
-    if status_filter == 'unreplied':
-        concerns_query = concerns_query.filter(SupportConcern.admin_reply.is_(None))
-    elif status_filter == 'replied':
-        concerns_query = concerns_query.filter(SupportConcern.admin_reply.isnot(None))
+    if status_filter == 'archived':
+        concerns_query = concerns_query.filter(SupportConcern.is_archived.is_(True))
     else:
-        status_filter = 'all'
+        concerns_query = concerns_query.filter(SupportConcern.is_archived.is_(False))
+        if status_filter == 'unreplied':
+            concerns_query = concerns_query.filter(SupportConcern.admin_reply.is_(None))
+        elif status_filter == 'replied':
+            concerns_query = concerns_query.filter(SupportConcern.admin_reply.isnot(None))
+        else:
+            status_filter = 'all'
+
+    total_active_count = SupportConcern.query.filter(SupportConcern.is_archived.is_(False)).count()
+    active_replied_count = SupportConcern.query.filter(
+        SupportConcern.is_archived.is_(False),
+        SupportConcern.admin_reply.isnot(None)
+    ).count()
+    active_unreplied_count = SupportConcern.query.filter(
+        SupportConcern.is_archived.is_(False),
+        SupportConcern.admin_reply.is_(None)
+    ).count()
+    archived_count = SupportConcern.query.filter(SupportConcern.is_archived.is_(True)).count()
 
     concerns = concerns_query.all()
-    return render_template('admin_support.html', concerns=concerns, status_filter=status_filter)
+    return render_template(
+        'admin_support.html',
+        concerns=concerns,
+        status_filter=status_filter,
+        total_active_count=total_active_count,
+        active_replied_count=active_replied_count,
+        active_unreplied_count=active_unreplied_count,
+        archived_count=archived_count
+    )
 
 
 @app.route('/admin/support/<int:concern_id>/reply', methods=['POST'])
@@ -1923,6 +2178,64 @@ def admin_reply_support(concern_id):
     except Exception:
         app.logger.exception('Failed to send admin support reply email')
         flash('Reply saved, but email delivery failed. Customer can still view notification in profile.', 'warning')
+
+    return redirect(url_for('admin_support'))
+
+
+@app.route('/admin/support/<int:concern_id>/archive', methods=['POST'])
+@admin_required
+def admin_archive_support(concern_id):
+    """Archive a support concern from active inbox view."""
+    concern = SupportConcern.query.get_or_404(concern_id)
+
+    try:
+        concern.is_archived = True
+        concern.archived_at = datetime.utcnow()
+        concern.archived_by_admin_id = current_user.id
+        db.session.commit()
+        flash(f'Support concern #{concern_id} archived.', 'success')
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Failed to archive support concern %s', concern_id)
+        flash('Could not archive support concern right now. Please try again.', 'danger')
+
+    return redirect(url_for('admin_support'))
+
+
+@app.route('/admin/support/<int:concern_id>/unarchive', methods=['POST'])
+@admin_required
+def admin_unarchive_support(concern_id):
+    """Restore an archived support concern back to active inbox view."""
+    concern = SupportConcern.query.get_or_404(concern_id)
+
+    try:
+        concern.is_archived = False
+        concern.archived_at = None
+        concern.archived_by_admin_id = None
+        db.session.commit()
+        flash(f'Support concern #{concern_id} restored to active inbox.', 'success')
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Failed to unarchive support concern %s', concern_id)
+        flash('Could not restore support concern right now. Please try again.', 'danger')
+
+    return redirect(url_for('admin_support', status='archived'))
+
+
+@app.route('/admin/support/<int:concern_id>/delete', methods=['POST'])
+@admin_required
+def admin_delete_support(concern_id):
+    """Delete a support concern from admin inbox."""
+    concern = SupportConcern.query.get_or_404(concern_id)
+
+    try:
+        db.session.delete(concern)
+        db.session.commit()
+        flash(f'Support concern #{concern_id} deleted successfully.', 'success')
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Failed to delete support concern %s', concern_id)
+        flash('Could not delete support concern right now. Please try again.', 'danger')
 
     return redirect(url_for('admin_support'))
 

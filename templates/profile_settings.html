@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block title %}Settings Overview - Rent A Car{% endblock %}
+
+{% block content %}
+<section class="profile-shell profile-settings-shell">
+    <header class="profile-hero" style="--profile-completion: {{ profile_completion }}%;">
+        <div class="profile-identity-block">
+            <img
+                class="profile-avatar"
+                id="profileAvatarPreview"
+                src="{{ current_user.profile_picture or url_for('static', filename='images/header/RentACarLogo.png') }}"
+                alt="{{ current_user.name }} profile picture"
+                referrerpolicy="no-referrer"
+            >
+            <div class="profile-identity-copy">
+                <p class="profile-role-kicker">Settings Overview</p>
+                <h1>{{ current_user.name }}</h1>
+                <p>{{ current_user.email }}</p>
+                <span class="profile-status-pill {% if current_user.email_verified %}is-verified{% else %}is-unverified{% endif %}">
+                    <i class="fas {% if current_user.email_verified %}fa-circle-check{% else %}fa-circle-exclamation{% endif %}"></i>
+                    {{ 'Verified account' if current_user.email_verified else 'Verification needed' }}
+                </span>
+            </div>
+        </div>
+        <div class="profile-completion-card">
+            <p>Profile completion</p>
+            <strong>{{ profile_completion }}%</strong>
+            <div class="profile-progress-track" role="img" aria-label="Profile completion {{ profile_completion }} percent">
+                <span class="profile-progress-bar"></span>
+            </div>
+            <small>Complete your profile for smoother bookings and faster support handling.</small>
+        </div>
+    </header>
+
+    <article class="profile-card" id="profile-checklist">
+        <div class="card-head slim">
+            <h3>Completion Checklist</h3>
+            <span class="profile-checklist-score">{{ profile_completion }}%</span>
+        </div>
+        <div class="profile-checklist-grid">
+            {% for item in profile_checklist %}
+            <article class="profile-check-item {% if item.done %}done{% else %}pending{% endif %}">
+                <div>
+                    <strong>{{ item.label }}</strong>
+                    <small>{{ 'Completed' if item.done else 'Needs action' }}</small>
+                </div>
+                {% if not item.done %}
+                <a href="{{ item.action_href }}" class="profile-inline-action">{{ item.action_label }}</a>
+                {% else %}
+                <span class="profile-check-ok"><i class="fas fa-check-circle"></i> Done</span>
+                {% endif %}
+            </article>
+            {% endfor %}
+        </div>
+    </article>
+
+    <section class="profile-card profile-settings-redirect-card">
+        <div class="card-head">
+            <h2>Open Settings Pages</h2>
+            <a href="{{ url_for('profile') }}">Back to profile</a>
+        </div>
+        <p>Account and security are now separated into dedicated pages for a cleaner flow.</p>
+        <div class="profile-settings-quick-links">
+            <a href="{{ url_for('profile_settings_account') }}" class="profile-inline-action">Go to Account Settings</a>
+            <a href="{{ url_for('profile_settings_security') }}" class="profile-inline-action">Go to Security</a>
+        </div>
+        <div class="security-activity-block" style="margin-top: 12px;">
+            <p><strong>Recent Login:</strong> {{ last_login_at.strftime('%b %d, %Y %I:%M %p') if last_login_at else 'No login history yet' }}</p>
+            <p><strong>Email Status:</strong> {{ 'Verified' if current_user.email_verified else 'Not verified' }}</p>
+        </div>
+    </section>
+</section>
+{% endblock %}

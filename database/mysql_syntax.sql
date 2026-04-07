@@ -1,14 +1,21 @@
-CREATE DATABASE car_rental;
+CREATE DATABASE IF NOT EXISTS car_rental;
 USE car_rental;
 
 CREATE TABLE `user` (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
   email VARCHAR(100) UNIQUE NOT NULL,
+  firebase_uid VARCHAR(128) UNIQUE,
+  profile_picture VARCHAR(255),
   contact VARCHAR(20),
   password VARCHAR(200) NOT NULL,
+  email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+  email_verified_at DATETIME,
+  otp VARCHAR(6),
+  otp_expires_at DATETIME,
   is_admin BOOLEAN DEFAULT FALSE,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  last_login_at DATETIME
 );
 
 CREATE TABLE car (
@@ -57,7 +64,7 @@ CREATE TABLE payment (
   user_id INT NOT NULL,
   booking_id INT NOT NULL,
   payment_method_id INT NOT NULL,
-  amount_paid DECIMAL(10, 2) NOT NULL,
+  amount_paid INT NOT NULL,
   date_paid VARCHAR(50),
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES `user`(id),
@@ -77,3 +84,28 @@ CREATE TABLE review (
   FOREIGN KEY (car_id) REFERENCES car(id),
   FOREIGN KEY (booking_id) REFERENCES booking(id)
 );
+
+CREATE TABLE support_concern (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NULL,
+  name VARCHAR(100) NOT NULL,
+  email VARCHAR(120) NOT NULL,
+  subject VARCHAR(160) NOT NULL,
+  message TEXT NOT NULL,
+  admin_reply TEXT NULL,
+  admin_replied_at DATETIME NULL,
+  replied_by_admin_id INT NULL,
+  user_has_seen_reply BOOLEAN NOT NULL DEFAULT FALSE,
+  is_archived BOOLEAN NOT NULL DEFAULT FALSE,
+  archived_at DATETIME NULL,
+  archived_by_admin_id INT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES `user`(id),
+  FOREIGN KEY (replied_by_admin_id) REFERENCES `user`(id),
+  FOREIGN KEY (archived_by_admin_id) REFERENCES `user`(id)
+);
+
+-- Promote specific account to admin after the user exists.
+UPDATE user
+SET is_admin = 1
+WHERE email = 'admin@rentacar.com';

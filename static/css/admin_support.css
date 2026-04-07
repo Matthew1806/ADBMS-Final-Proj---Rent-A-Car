@@ -2,31 +2,114 @@
    ADMIN SUPPORT INBOX
    ======================================== */
 
+.admin-support-inbox {
+    display: grid;
+    gap: 14px;
+}
+
+.admin-support-overview {
+    display: grid;
+    gap: 16px;
+    border: 1px solid #d4e0f2;
+    background:
+        radial-gradient(circle at 93% 12%, rgba(203, 75, 59, 0.13), transparent 40%),
+        radial-gradient(circle at 0% 100%, rgba(40, 94, 171, 0.1), transparent 48%),
+        #ffffff;
+}
+
+.admin-support-title-block {
+    display: grid;
+    gap: 6px;
+}
+
+.admin-support-eyebrow {
+    margin: 0;
+    color: #395783;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.72rem;
+}
+
+.admin-support-subtitle {
+    margin: 0;
+    color: #5f7089;
+    max-width: 760px;
+}
+
+.admin-support-stats {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.admin-support-stat-card {
+    border: 1px solid #d8e4f5;
+    background: #f8fbff;
+    border-radius: 12px;
+    padding: 11px 12px;
+    display: grid;
+    gap: 4px;
+}
+
+.admin-support-stat-label {
+    color: #5e7393;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.admin-support-stat-card strong {
+    color: #16315b;
+    font-size: 1.24rem;
+    line-height: 1;
+}
+
 .admin-action-group {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
 }
 
+.admin-support-filters {
+    align-items: center;
+}
+
 .admin-secondary-btn.active-filter {
-    background: #1f3258;
+    background: linear-gradient(120deg, #1d335c, #295493);
     color: #ffffff;
-    border-color: #1f3258;
+    border-color: transparent;
+    box-shadow: 0 8px 20px rgba(29, 51, 92, 0.22);
 }
 
 .admin-support-list {
     margin-top: 14px;
     display: grid;
-    gap: 12px;
+    gap: 14px;
 }
 
 .admin-support-item {
-    border: 1px solid #dce6f4;
-    border-radius: 12px;
+    border: 1px solid #d8e3f2;
+    border-left: 4px solid #d8e3f2;
+    border-radius: 14px;
     background: #fdfefe;
-    padding: 14px;
+    padding: 15px;
     display: grid;
-    gap: 10px;
+    gap: 12px;
+    box-shadow: 0 8px 20px rgba(16, 31, 58, 0.06);
+    animation: admin-support-fade-up 0.32s ease;
+}
+
+.admin-support-item.is-pending {
+    border-left-color: #d89b2d;
+}
+
+.admin-support-item.is-replied {
+    border-left-color: #2f8f67;
+}
+
+.admin-support-item.is-archived {
+    border-left-color: #6f7f96;
+    background: #f7f9fc;
 }
 
 .admin-support-head {
@@ -39,34 +122,52 @@
 .admin-support-head h3 {
     margin: 0;
     color: #1f3258;
-    font-size: 1.05rem;
+    font-size: 1.07rem;
 }
 
-.admin-support-head p {
-    margin: 5px 0 0;
+.admin-support-meta {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
     color: #607087;
-    font-size: 0.88rem;
+    font-size: 0.84rem;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.admin-support-meta li {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid #e2ebf7;
+    background: #f8fbff;
+    border-radius: 999px;
+    padding: 4px 10px;
 }
 
 .admin-support-message,
 .admin-support-reply-view {
     background: #ffffff;
-    border: 1px solid #e3ebf7;
+    border: 1px solid #dfe8f5;
     border-radius: 10px;
-    padding: 10px;
+    padding: 12px;
 }
 
 .admin-support-message h4,
 .admin-support-reply-view h4 {
-    margin: 0 0 6px;
+    margin: 0 0 8px;
     color: #21365b;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .admin-support-message p,
 .admin-support-reply-view p {
     margin: 0;
-    color: #425671;
+    color: #3d516f;
     line-height: 1.6;
     white-space: pre-wrap;
 }
@@ -79,25 +180,27 @@
 
 .admin-support-reply-form {
     display: grid;
-    gap: 7px;
+    gap: 8px;
 }
 
 .admin-support-reply-form label {
-    color: #2a3f64;
+    color: #294063;
     font-size: 0.82rem;
     font-weight: 700;
 }
 
 .admin-support-reply-form textarea {
     width: 100%;
-    border: 1px solid #cedbee;
+    border: 1px solid #c8d8ee;
     border-radius: 10px;
     padding: 10px 12px;
     font-size: 0.9rem;
     color: #20314f;
     resize: vertical;
-    min-height: 90px;
+    min-height: 100px;
     box-sizing: border-box;
+    background: #fcfdff;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .admin-support-reply-form textarea:focus {
@@ -106,9 +209,128 @@
     box-shadow: 0 0 0 3px rgba(196, 69, 54, 0.12);
 }
 
+.admin-support-reply-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.admin-reply-char-count {
+    color: #637a99;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.admin-reply-char-count.warning {
+    color: #b24e36;
+}
+
+.admin-support-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.admin-support-status-archived {
+    background: #e5ebf4;
+    color: #4b607f;
+}
+
+.admin-archive-btn,
+.admin-restore-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.admin-archive-btn {
+    border-color: #cfd9e8;
+    color: #324c73;
+}
+
+.admin-archive-btn:hover {
+    border-color: #8ca0bf;
+    color: #203a5e;
+}
+
+.admin-restore-btn {
+    border-color: #c9d9cf;
+    color: #2f6d4f;
+}
+
+.admin-restore-btn:hover {
+    border-color: #7dab93;
+    color: #1f5c40;
+}
+
+.admin-support-empty-state {
+    text-align: center;
+    padding: 34px 20px;
+}
+
+.admin-support-empty-state i {
+    font-size: 2rem;
+    color: #7e98bf;
+    margin-bottom: 6px;
+}
+
+.admin-support-empty-state h3 {
+    margin: 0 0 6px;
+    color: #21365b;
+}
+
+.admin-support-empty-state p {
+    margin: 0;
+    color: #617691;
+}
+
+@keyframes admin-support-fade-up {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 @media (max-width: 760px) {
+    .admin-support-stats {
+        grid-template-columns: 1fr;
+    }
+
     .admin-support-head {
         flex-direction: column;
         align-items: flex-start;
+    }
+
+    .admin-support-meta {
+        gap: 7px;
+    }
+
+    .admin-support-meta li {
+        width: 100%;
+        justify-content: flex-start;
+        border-radius: 10px;
+    }
+
+    .admin-support-reply-footer {
+        align-items: stretch;
+    }
+
+    .admin-support-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+        width: 100%;
+    }
+
+    .admin-support-actions .admin-primary-btn,
+    .admin-support-actions .admin-danger-btn {
+        width: 100%;
+        justify-content: center;
     }
 }

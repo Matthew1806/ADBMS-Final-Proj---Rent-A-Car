@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block title %}Photo Upload - Rent A Car{% endblock %}
+
+{% block content %}
+<section class="profile-shell profile-settings-shell">
+    <header class="profile-hero" style="--profile-completion: {{ profile_completion }}%;">
+        <div class="profile-identity-block">
+            <img
+                class="profile-avatar"
+                id="profileAvatarPreview"
+                src="{{ current_user.profile_picture or url_for('static', filename='images/header/RentACarLogo.png') }}"
+                alt="{{ current_user.name }} profile picture"
+                referrerpolicy="no-referrer"
+            >
+            <div class="profile-identity-copy">
+                <p class="profile-role-kicker">Photo Upload</p>
+                <h1>{{ current_user.name }}</h1>
+                <p>{{ current_user.email }}</p>
+            </div>
+        </div>
+        <div class="profile-completion-card">
+            <p>Profile completion</p>
+            <strong>{{ profile_completion }}%</strong>
+            <div class="profile-progress-track" role="img" aria-label="Profile completion {{ profile_completion }} percent">
+                <span class="profile-progress-bar"></span>
+            </div>
+            <small>Upload a clear photo to complete your profile faster.</small>
+        </div>
+    </header>
+
+    <section class="profile-card profile-settings-redirect-card">
+        <div class="card-head">
+            <h2>Settings Navigation</h2>
+            <a href="{{ url_for('profile_settings') }}">Checklist overview</a>
+        </div>
+        <div class="profile-settings-quick-links">
+            <a href="{{ url_for('profile_settings_account') }}" class="profile-inline-action">Edit All Information</a>
+            <a href="{{ url_for('profile_settings_security') }}" class="profile-inline-action">Go to Security</a>
+            <a href="{{ url_for('profile') }}" class="profile-inline-action">Back to Profile</a>
+        </div>
+    </section>
+
+    <article class="profile-card">
+        <div class="card-head">
+            <h2>Upload Photo Only</h2>
+        </div>
+        <form method="post" action="{{ url_for('update_profile_photo') }}" enctype="multipart/form-data" class="profile-form-grid" id="profilePhotoOnlyForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label>
+                Profile Photo (JPG, PNG, WEBP, max 2MB)
+                <input type="file" name="profile_picture" id="profilePictureInput" accept="image/png,image/jpeg,image/webp" required>
+                <small class="profile-field-note" id="profilePhotoStatus">Only your profile photo will be updated.</small>
+            </label>
+            <button type="submit" class="profile-primary-btn">
+                <i class="fas fa-upload"></i>
+                Upload Photo
+            </button>
+        </form>
+    </article>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const photoInput = document.getElementById('profilePictureInput');
+    const avatarPreview = document.getElementById('profileAvatarPreview');
+    const status = document.getElementById('profilePhotoStatus');
+    const maxSizeBytes = 2 * 1024 * 1024;
+
+    if (!photoInput || !avatarPreview || !status) {
+        return;
+    }
+
+    photoInput.addEventListener('change', function () {
+        const file = photoInput.files && photoInput.files[0];
+        if (!file) {
+            status.textContent = 'Only your profile photo will be updated.';
+            return;
+        }
+
+        const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+        if (!allowed.includes(file.type)) {
+            photoInput.value = '';
+            status.textContent = 'Invalid file type. Please upload JPG, PNG, or WEBP.';
+            return;
+        }
+
+        if (file.size > maxSizeBytes) {
+            photoInput.value = '';
+            status.textContent = 'File is too large. Maximum allowed is 2MB.';
+            return;
+        }
+
+        const tempUrl = URL.createObjectURL(file);
+        avatarPreview.src = tempUrl;
+        status.textContent = 'Photo ready to upload.';
+    });
+});
+</script>
+{% endblock %}

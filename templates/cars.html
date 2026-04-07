@@ -131,7 +131,7 @@
 
             <div class="cars-card-actions">
                 <a href="{{ url_for('car_details', car_id=car.id) }}" class="cars-card-viewdetails-button">View Details</a>
-                <a href="{{ url_for('book') }}" class="cars-card-booknow-button">Book Now</a>
+                <a href="{{ url_for('book', car_id=car.id, start_step=2) }}" class="cars-card-booknow-button">Book Now</a>
             </div>
         </article>
         {% endfor %}

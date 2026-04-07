@@ -28,7 +28,7 @@
 
                 <div class="admin-carform-field">
                     {{ form.price.label }}
-                    {{ form.price(class="admin-carform-input", placeholder="e.g., 2500 / day") }}
+                    {{ form.price(class="admin-carform-input", placeholder="e.g., 2500") }}
                     {% if form.price.errors %}
                         <div class="admin-carform-error">{{ form.price.errors[0] }}</div>
                     {% endif %}
@@ -102,8 +102,12 @@
             <div class="admin-car-form-fields">
                 <div class="admin-carform-field">
                     {{ form.image.label }}
-                    {{ form.image(class="admin-carform-input") }}
-                    <small class="admin-car-form-help">Upload JPG, PNG, or GIF. Use clear front or 3/4 angle photos for better conversions.</small>
+                    {{ form.image(class="admin-carform-input", required=not is_edit) }}
+                    {% if is_edit %}
+                    <small class="admin-car-form-help">Optional on edit. Upload a file only if you want to replace the current image (JPG, PNG, or GIF).</small>
+                    {% else %}
+                    <small class="admin-car-form-help">Required for new cars. Upload JPG, PNG, or GIF. Use clear front or 3/4 angle photos for better conversions.</small>
+                    {% endif %}
                     {% if form.image.errors %}
                         <div class="admin-carform-error">{{ form.image.errors[0] }}</div>
                     {% endif %}

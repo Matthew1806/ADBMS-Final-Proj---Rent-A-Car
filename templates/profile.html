@@ -4,190 +4,93 @@
 
 {% block content %}
 <section class="profile-shell">
-    <article class="profile-hero-card" style="--profile-completion: {{ profile_completion }}%;">
-        <div class="profile-header-main">
+    <header class="profile-hero" style="--profile-completion: {{ profile_completion }}%;">
+        <div class="profile-identity-block">
             <img
                 class="profile-avatar"
                 src="{{ current_user.profile_picture or url_for('static', filename='images/header/RentACarLogo.png') }}"
                 alt="{{ current_user.name }} profile picture"
                 referrerpolicy="no-referrer"
             >
-            <div>
-                <p class="profile-label">Customer Profile</p>
-                <h1 class="profile-name">{{ current_user.name }}</h1>
-                <p class="profile-email">{{ current_user.email }}</p>
-                <p class="verification-pill {% if current_user.email_verified %}verified{% else %}unverified{% endif %}">
+            <div class="profile-identity-copy">
+                <p class="profile-kicker">Account Profile</p>
+                <h1>{{ current_user.name }}</h1>
+                <p>{{ current_user.email }}</p>
+                <span class="verification-pill {% if current_user.email_verified %}verified{% else %}unverified{% endif %}">
                     <i class="fas {% if current_user.email_verified %}fa-circle-check{% else %}fa-triangle-exclamation{% endif %}"></i>
-                    {{ 'Email Verified' if current_user.email_verified else 'Email Not Verified' }}
-                </p>
+                    {{ 'Verified Account' if current_user.email_verified else 'Verification Needed' }}
+                </span>
             </div>
         </div>
-        <div class="profile-completion-card">
-            <p>Profile Completion</p>
-            <h2>{{ profile_completion }}%</h2>
+
+        <div class="profile-progress-panel">
+            <span>Profile Completion</span>
+            <strong>{{ profile_completion }}%</strong>
             <div class="completion-bar"><span></span></div>
-            <small>Complete profile details for a smoother booking process.</small>
+            <small>Keep your details updated for faster booking approvals.</small>
         </div>
-    </article>
+    </header>
 
-    <section class="profile-dashboard-focus">
-        <div>
-            <p class="focus-kicker">Driver Command Center</p>
-            <h2>Need your full booking overview?</h2>
-            <p>Open your dashboard to see upcoming trip details, booking status insights, and quick actions in one view.</p>
-        </div>
-        <a href="{{ url_for('dashboard') }}" class="focus-dashboard-btn">
-            <i class="fas fa-chart-line"></i>
-            Open Dashboard
-        </a>
-    </section>
-
-    <section class="profile-support-banner">
-        <div class="profile-support-banner-content">
-            <p class="profile-support-kicker">Support Notifications</p>
-            {% if unread_support_reply_count > 0 %}
-            <h2>You have {{ unread_support_reply_count }} new admin {{ 'reply' if unread_support_reply_count == 1 else 'replies' }}</h2>
-            <p>Open your latest support update now, or review all reply history below.</p>
-            {% else %}
-            <h2>{{ 'You have support reply history' if latest_support_replies else 'No support replies yet' }}</h2>
-            <p>{{ 'You can still open your latest admin response below.' if latest_support_replies else 'Submit a concern and you will receive updates here once admin replies.' }}</p>
-            {% endif %}
-        </div>
-        <div class="profile-support-banner-actions">
-            {% if primary_support_reply %}
-            <a href="{{ url_for('open_support_reply', concern_id=primary_support_reply.id) }}" class="focus-dashboard-btn">
-                <i class="fas fa-envelope-open-text"></i>
-                Open Latest Reply
-            </a>
-            {% else %}
-            <a href="{{ url_for('about_contact') }}#contact-admin-form" class="focus-dashboard-btn">
-                <i class="fas fa-paper-plane"></i>
-                Send New Concern
-            </a>
-            {% endif %}
-            <a href="{{ url_for('profile_notifications') }}" class="support-secondary-btn">
-                <i class="fas fa-bell"></i>
-                View Notifications
-            </a>
-        </div>
-    </section>
-
-    <section class="profile-meta-grid">
-        <article class="profile-meta-item">
-            <span class="meta-title">Member Since</span>
-            <span class="meta-value">{{ member_since }}</span>
+    <section class="profile-overview-grid">
+        <article class="profile-card metric-card">
+            <span>Member Since</span>
+            <strong>{{ member_since }}</strong>
             <small>{{ membership_days }} day(s) with Rent A Car</small>
         </article>
-        <article class="profile-meta-item">
-            <span class="meta-title">Contact Number</span>
-            <span class="meta-value">{{ current_user.contact or 'Not provided yet' }}</span>
-            <small>Used for booking updates and coordination</small>
+        <article class="profile-card metric-card">
+            <span>Contact Number</span>
+            <strong>{{ current_user.contact or 'Not provided' }}</strong>
+            <small>Used for booking updates</small>
         </article>
-        <article class="profile-meta-item">
-            <span class="meta-title">Total Paid Rentals</span>
-            <span class="meta-value">{{ total_spent_display }}</span>
-            <small>All successfully paid booking totals</small>
+        <article class="profile-card metric-card">
+            <span>Total Paid Rentals</span>
+            <strong>{{ total_spent_display }}</strong>
+            <small>All paid booking totals</small>
         </article>
-        <article class="profile-meta-item">
-            <span class="meta-title">Average Review</span>
-            <span class="meta-value">{{ average_rating if average_rating is not none else 'No ratings yet' }}</span>
+        <article class="profile-card metric-card">
+            <span>Average Review</span>
+            <strong>{{ average_rating if average_rating is not none else 'No ratings yet' }}</strong>
             <small>{{ reviews_count }} review(s) submitted</small>
         </article>
     </section>
 
-    <section class="profile-stats-grid">
-        <article class="profile-stat-card">
-            <i class="fas fa-folder-open"></i>
-            <div>
-                <h3>{{ total_bookings }}</h3>
-                <p>Total Bookings</p>
-            </div>
-        </article>
-        <article class="profile-stat-card">
-            <i class="fas fa-circle-check"></i>
-            <div>
-                <h3>{{ approved_bookings }}</h3>
-                <p>Approved</p>
-            </div>
-        </article>
-        <article class="profile-stat-card">
-            <i class="fas fa-hourglass-half"></i>
-            <div>
-                <h3>{{ pending_bookings }}</h3>
-                <p>Pending</p>
-            </div>
-        </article>
-        <article class="profile-stat-card">
-            <i class="fas fa-flag-checkered"></i>
-            <div>
-                <h3>{{ completed_rentals }}</h3>
-                <p>Completed Rentals</p>
-            </div>
-        </article>
+    <section class="profile-card profile-settings-redirect-card">
+        <div class="card-head">
+            <h2>Profile Management</h2>
+        </div>
+        <p>Manage your account details, completion checklist, and security settings from one dedicated page.</p>
+        <div class="profile-settings-quick-links">
+            <a href="{{ url_for('profile_settings') }}#profile-checklist" class="profile-inline-action">Completion Checklist</a>
+            <a href="{{ url_for('profile_settings_account') }}" class="profile-inline-action">Account Settings</a>
+            <a href="{{ url_for('profile_settings_security') }}" class="profile-inline-action">Security</a>
+        </div>
     </section>
 
-    <section class="profile-detail-grid">
-        <article class="profile-activity-card">
-            <div class="panel-head">
-                <h2>Latest Booking Activity</h2>
-                <a href="{{ url_for('my_bookings') }}">View all</a>
-            </div>
-
-            {% if last_booking %}
-            <div class="latest-booking-block">
-                <h3>{{ last_booking.car.name if last_booking.car else 'Selected Car' }}</h3>
-                <p><i class="fas fa-calendar-days"></i> {{ last_booking.pickup_date.strftime('%b %d, %Y') }} - {{ last_booking.return_date.strftime('%b %d, %Y') }}</p>
-                <p><i class="fas fa-location-dot"></i> {{ last_booking.pickup_area_display or 'Pickup area pending' }}</p>
-                <div class="latest-booking-foot">
-                    <span class="booking-status-pill status-{{ (last_booking.status or 'pending')|lower }}">{{ last_booking.status }}</span>
-                    <strong>{{ last_booking.total_cost_display }}</strong>
+    <section class="profile-card" id="support-notifications">
+        <div class="card-head slim">
+            <h3>Support Inbox</h3>
+            <a href="{{ url_for('profile_notifications') }}">View all</a>
+        </div>
+        {% if unread_support_reply_count > 0 %}
+        <p class="profile-support-kicker">You have {{ unread_support_reply_count }} unread support {{ 'reply' if unread_support_reply_count == 1 else 'replies' }}.</p>
+        {% endif %}
+        {% if latest_support_replies %}
+            {% for concern in latest_support_replies %}
+            <a href="{{ url_for('open_support_reply', concern_id=concern.id) }}" class="support-reply-item {% if not concern.user_has_seen_reply %}unread{% endif %}">
+                <div class="support-reply-top">
+                    <strong>#{{ concern.id }} - {{ concern.subject }}</strong>
+                    <span class="support-state-pill {% if not concern.user_has_seen_reply %}state-unread{% else %}state-read{% endif %}">
+                        {{ 'New' if not concern.user_has_seen_reply else 'Seen' }}
+                    </span>
                 </div>
-            </div>
-            {% else %}
-            <div class="empty-profile-state">
-                <i class="fas fa-car-side"></i>
-                <p>No booking activity yet.</p>
-                <a href="{{ url_for('cars_page') }}" class="meta-link">Browse available cars</a>
-            </div>
-            {% endif %}
-        </article>
-
-        <article class="profile-actions-card">
-            <div class="panel-head">
-                <h2>Quick Actions</h2>
-            </div>
-            <a href="{{ url_for('dashboard') }}" class="action-link"><i class="fas fa-chart-line"></i> Open Dashboard</a>
-            <a href="{{ url_for('book') }}" class="action-link"><i class="fas fa-calendar-plus"></i> Start New Booking</a>
-            <a href="{{ url_for('my_bookings') }}" class="action-link"><i class="fas fa-list-check"></i> Manage Existing Bookings</a>
-            <a href="{{ url_for('about_contact') }}#contact-admin-form" class="action-link"><i class="fas fa-headset"></i> Contact Support</a>
-
-            <div id="support-notifications" class="support-notification-block">
-                <div class="panel-head support-panel-head">
-                    <h2>Support Notifications</h2>
-                    {% if unread_support_reply_count > 0 %}
-                    <span class="support-notification-count">{{ unread_support_reply_count }} new</span>
-                    {% endif %}
-                </div>
-
-                {% if latest_support_replies %}
-                    {% for concern in latest_support_replies %}
-                    <a href="{{ url_for('open_support_reply', concern_id=concern.id) }}" class="support-reply-item {% if not concern.user_has_seen_reply %}unread{% endif %}">
-                        <div class="support-reply-top">
-                            <strong>#{{ concern.id }} - {{ concern.subject }}</strong>
-                            <span class="support-state-pill {% if not concern.user_has_seen_reply %}state-unread{% else %}state-read{% endif %}">
-                                {{ 'New' if not concern.user_has_seen_reply else 'Seen' }}
-                            </span>
-                        </div>
-                        <span>{{ concern.admin_replied_at.strftime('%b %d, %Y %I:%M %p') if concern.admin_replied_at else 'Recently replied' }}</span>
-                        <small>{{ (concern.admin_reply or '')[:120] }}{% if concern.admin_reply and concern.admin_reply|length > 120 %}...{% endif %}</small>
-                        <em>Open full reply in Gmail</em>
-                    </a>
-                    {% endfor %}
-                {% else %}
-                <p class="support-empty">No admin replies yet. Submit a concern and updates will appear here.</p>
-                {% endif %}
-            </div>
-        </article>
+                <span>{{ concern.admin_replied_at.strftime('%b %d, %Y %I:%M %p') if concern.admin_replied_at else 'Recently replied' }}</span>
+                <small>{{ (concern.admin_reply or '')[:120] }}{% if concern.admin_reply and concern.admin_reply|length > 120 %}...{% endif %}</small>
+                <em>Reply via Gmail</em>
+            </a>
+            {% endfor %}
+        {% else %}
+        <p class="support-empty">No admin replies yet. Submit a concern and updates will appear here.</p>
+        {% endif %}
     </section>
 </section>
 {% endblock %}

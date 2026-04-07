@@ -8,7 +8,7 @@
         <div>
             <p class="profile-support-kicker">Customer Support</p>
             <h1>Notification Center</h1>
-            <p>Track admin replies to your submitted concerns and open the full email thread in Gmail.</p>
+            <p>Track admin replies to your submitted concerns and send your follow-up directly through Gmail.</p>
         </div>
         <a href="{{ url_for('about_contact') }}#contact-admin-form" class="focus-dashboard-btn">
             <i class="fas fa-paper-plane"></i>
@@ -35,6 +35,10 @@
         <a href="{{ url_for('profile_notifications', status='all') }}" class="{% if status_filter == 'all' %}active{% endif %}">All</a>
         <a href="{{ url_for('profile_notifications', status='unread') }}" class="{% if status_filter == 'unread' %}active{% endif %}">Unread</a>
         <a href="{{ url_for('profile_notifications', status='read') }}" class="{% if status_filter == 'read' %}active{% endif %}">Read</a>
+        <form method="post" action="{{ url_for('mark_all_profile_notifications_read') }}" class="support-mark-read-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="support-mark-read-btn">Mark all as read</button>
+        </form>
         <a href="{{ url_for('profile') }}" class="profile-filter-back">Back to Profile</a>
     </nav>
 
@@ -55,7 +59,7 @@
             <div class="profile-notification-actions">
                 <a href="{{ url_for('open_support_reply', concern_id=concern.id) }}" class="focus-dashboard-btn">
                     <i class="fas fa-envelope-open-text"></i>
-                    Open in Gmail
+                    Reply via Gmail
                 </a>
             </div>
         </article>

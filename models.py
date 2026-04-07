@@ -41,6 +41,7 @@ class User(UserMixin, db.Model):
     otp_expires_at = db.Column(db.DateTime, nullable=True)  # When OTP expires
     is_admin = db.Column(db.Boolean, default=False)  # Is this user an admin?
     created_at = db.Column(db.DateTime, default=datetime.utcnow)  # Account creation date
+    last_login_at = db.Column(db.DateTime, nullable=True)  # Last successful login timestamp
 
 
 # ---------------- BOOKING TABLE ----------------
@@ -117,7 +118,11 @@ class SupportConcern(db.Model):
     admin_replied_at = db.Column(db.DateTime, nullable=True)
     replied_by_admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     user_has_seen_reply = db.Column(db.Boolean, default=False, nullable=False)
+    is_archived = db.Column(db.Boolean, default=False, nullable=False)
+    archived_at = db.Column(db.DateTime, nullable=True)
+    archived_by_admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     user = db.relationship('User', foreign_keys=[user_id], backref='support_concerns')
     replied_by_admin = db.relationship('User', foreign_keys=[replied_by_admin_id])
+    archived_by_admin = db.relationship('User', foreign_keys=[archived_by_admin_id])

@@ -2,7 +2,7 @@
 # These are the tools we need to make forms that users can fill out.
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, RadioField, TextAreaField, DateField, SelectField, FileField, DateTimeField, IntegerField  # Form field types
-from wtforms.validators import DataRequired, Length, ValidationError, Email, EqualTo, InputRequired, Regexp  # Rules to check form inputs
+from wtforms.validators import DataRequired, Length, ValidationError, Email, EqualTo, InputRequired, Regexp, Optional  # Rules to check form inputs
 
 
 # ---------------- REGISTRATION FORM ----------------
@@ -71,7 +71,7 @@ class CarForm(FlaskForm):
     name = StringField('Car Name', validators=[DataRequired(), Length(min=2, max=100)])  # Car model name
     price = StringField('Price', validators=[DataRequired(), Length(min=1, max=50)])  # Daily price
     specs = StringField('Description', validators=[DataRequired(), Length(min=2, max=200)])  # Car description
-    image = FileField('Main Image', validators=[DataRequired()])  # Main car image upload
+    image = FileField('Main Image', validators=[Optional()])  # Main car image upload (required only when adding)
     transmission = SelectField('Transmission', choices=[('Automatic', 'Automatic'), ('Manual', 'Manual')], validators=[DataRequired()])  # Auto/Manual
     fuel = SelectField('Fuel', choices=[('Gas', 'Gas'), ('Diesel', 'Diesel'), ('Electric', 'Electric')], validators=[DataRequired()])  # Fuel type
     capacity = StringField('Capacity', validators=[DataRequired(), Length(min=1, max=50)])  # Seating capacity

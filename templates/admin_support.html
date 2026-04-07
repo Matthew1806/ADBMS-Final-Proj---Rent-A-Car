@@ -3,43 +3,74 @@
 {% block title %}Admin Support Inbox - Rent A Car{% endblock %}
 
 {% block admin_content %}
-<section class="admin-card">
-    <div class="admin-toolbar">
-        <h2>Support Inbox</h2>
-        <div class="admin-action-group">
-            <a href="{{ url_for('admin_support', status='all') }}" class="admin-secondary-btn {% if status_filter == 'all' %}active-filter{% endif %}">All</a>
-            <a href="{{ url_for('admin_support', status='unreplied') }}" class="admin-secondary-btn {% if status_filter == 'unreplied' %}active-filter{% endif %}">Unreplied</a>
-            <a href="{{ url_for('admin_support', status='replied') }}" class="admin-secondary-btn {% if status_filter == 'replied' %}active-filter{% endif %}">Replied</a>
+<section class="admin-support-inbox">
+    <div class="admin-card admin-support-overview">
+        <div class="admin-support-title-block">
+            <p class="admin-support-eyebrow">Customer Care Workspace</p>
+            <h2>Support Inbox</h2>
+            <p class="admin-support-subtitle">Review tickets, send clear responses, and keep every customer issue tracked in one place.</p>
+        </div>
+
+        <div class="admin-support-stats" aria-label="Support inbox summary">
+            <article class="admin-support-stat-card">
+                <span class="admin-support-stat-label">Active Tickets</span>
+                <strong>{{ total_active_count }}</strong>
+            </article>
+            <article class="admin-support-stat-card">
+                <span class="admin-support-stat-label">Awaiting Reply</span>
+                <strong>{{ active_unreplied_count }}</strong>
+            </article>
+            <article class="admin-support-stat-card">
+                <span class="admin-support-stat-label">Already Replied</span>
+                <strong>{{ active_replied_count }}</strong>
+            </article>
+            <article class="admin-support-stat-card">
+                <span class="admin-support-stat-label">Archived</span>
+                <strong>{{ archived_count }}</strong>
+            </article>
+        </div>
+
+        <div class="admin-action-group admin-support-filters" role="tablist" aria-label="Support filters">
+            <a href="{{ url_for('admin_support', status='all') }}" class="admin-secondary-btn {% if status_filter == 'all' %}active-filter{% endif %}" role="tab" aria-selected="{{ 'true' if status_filter == 'all' else 'false' }}">All Tickets</a>
+            <a href="{{ url_for('admin_support', status='unreplied') }}" class="admin-secondary-btn {% if status_filter == 'unreplied' %}active-filter{% endif %}" role="tab" aria-selected="{{ 'true' if status_filter == 'unreplied' else 'false' }}">Awaiting Reply</a>
+            <a href="{{ url_for('admin_support', status='replied') }}" class="admin-secondary-btn {% if status_filter == 'replied' %}active-filter{% endif %}" role="tab" aria-selected="{{ 'true' if status_filter == 'replied' else 'false' }}">Resolved / Replied</a>
+            <a href="{{ url_for('admin_support', status='archived') }}" class="admin-secondary-btn {% if status_filter == 'archived' %}active-filter{% endif %}" role="tab" aria-selected="{{ 'true' if status_filter == 'archived' else 'false' }}">Archived</a>
         </div>
     </div>
 
     {% if concerns %}
     <div class="admin-support-list">
         {% for concern in concerns %}
-        <article class="admin-support-item">
+        {% set is_replied = concern.admin_reply is not none and concern.admin_reply|trim %}
+        {% set is_archived = concern.is_archived %}
+        <article class="admin-support-item {% if is_archived %}is-archived{% elif is_replied %}is-replied{% else %}is-pending{% endif %}">
             <div class="admin-support-head">
                 <div>
                     <h3>#{{ concern.id }} - {{ concern.subject }}</h3>
-                    <p>
-                        <strong>{{ concern.name }}</strong> • {{ concern.email }} •
-                        {{ concern.created_at.strftime('%b %d, %Y %I:%M %p') if concern.created_at else 'Unknown date' }}
-                    </p>
+                    <ul class="admin-support-meta">
+                        <li><i class="fas fa-user"></i> {{ concern.name }}</li>
+                        <li><i class="fas fa-envelope"></i> {{ concern.email }}</li>
+                        <li><i class="fas fa-clock"></i> {{ concern.created_at.strftime('%b %d, %Y %I:%M %p') if concern.created_at else 'Unknown date' }}</li>
+                    </ul>
                 </div>
-                {% if concern.admin_reply %}
+                {% if is_replied %}
                 <span class="admin-status-badge admin-status-approved">Replied</span>
                 {% else %}
                 <span class="admin-status-badge admin-status-pending">Awaiting Reply</span>
                 {% endif %}
+                {% if is_archived %}
+                <span class="admin-status-badge admin-support-status-archived">Archived</span>
+                {% endif %}
             </div>
 
             <div class="admin-support-message">
-                <h4>Customer Message</h4>
+                <h4><i class="fas fa-comment-dots"></i> Customer Message</h4>
                 <p>{{ concern.message }}</p>
             </div>
 
-            {% if concern.admin_reply %}
+            {% if is_replied %}
             <div class="admin-support-reply-view">
-                <h4>Latest Admin Reply</h4>
+                <h4><i class="fas fa-reply"></i> Latest Admin Reply</h4>
                 <p>{{ concern.admin_reply }}</p>
                 <small>
                     Replied {{ concern.admin_replied_at.strftime('%b %d, %Y %I:%M %p') if concern.admin_replied_at else '' }}
@@ -50,17 +81,77 @@
             <form method="post" action="{{ url_for('admin_reply_support', concern_id=concern.id) }}" class="admin-support-reply-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <label for="reply-{{ concern.id }}">Admin Reply</label>
-                <textarea id="reply-{{ concern.id }}" name="reply" rows="3" minlength="5" maxlength="2000" required placeholder="Type your reply to the customer...">{{ concern.admin_reply if concern.admin_reply else '' }}</textarea>
-                <button type="submit" class="admin-primary-btn">
-                    <i class="fas fa-paper-plane"></i>
-                    {{ 'Update Reply' if concern.admin_reply else 'Send Reply' }}
-                </button>
+                <textarea id="reply-{{ concern.id }}" name="reply" rows="4" minlength="5" maxlength="2000" {% if is_archived %}disabled{% else %}required{% endif %} data-reply-input placeholder="Write a clear, professional reply for this customer...">{{ concern.admin_reply if concern.admin_reply else '' }}</textarea>
+                <div class="admin-support-reply-footer">
+                    <span class="admin-reply-char-count" data-char-count>0 / 2000</span>
+                    <div class="admin-support-actions">
+                        {% if not is_archived %}
+                        <button type="submit" class="admin-primary-btn">
+                            <i class="fas fa-paper-plane"></i>
+                            {{ 'Update Reply' if is_replied else 'Send Reply' }}
+                        </button>
+                        <button type="submit"
+                                class="admin-secondary-btn admin-archive-btn"
+                                formaction="{{ url_for('admin_archive_support', concern_id=concern.id) }}"
+                                formmethod="post"
+                                onclick="return confirm('Archive support concern #{{ concern.id }}? You can restore it later.');">
+                            <i class="fas fa-box-archive"></i>
+                            Archive
+                        </button>
+                        {% else %}
+                        <button type="submit"
+                                class="admin-secondary-btn admin-restore-btn"
+                                formaction="{{ url_for('admin_unarchive_support', concern_id=concern.id) }}"
+                                formmethod="post">
+                            <i class="fas fa-box-open"></i>
+                            Restore
+                        </button>
+                        {% endif %}
+                        <button type="submit"
+                                class="admin-danger-btn"
+                                formaction="{{ url_for('admin_delete_support', concern_id=concern.id) }}"
+                                formmethod="post"
+                                onclick="return confirm('Delete support concern #{{ concern.id }}? This action cannot be undone.');">
+                            <i class="fas fa-trash"></i>
+                            Delete
+                        </button>
+                    </div>
+                </div>
             </form>
         </article>
         {% endfor %}
     </div>
     {% else %}
-    <p class="admin-empty">No support concerns found for this filter.</p>
+    <section class="admin-card admin-support-empty-state" aria-live="polite">
+        <i class="fas fa-inbox"></i>
+        <h3>No support concerns found</h3>
+        <p>Try switching filters or wait for new customer messages to arrive.</p>
+    </section>
     {% endif %}
 </section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const textareas = document.querySelectorAll('[data-reply-input]');
+
+    textareas.forEach(function (textarea) {
+        const form = textarea.closest('form');
+        const countEl = form ? form.querySelector('[data-char-count]') : null;
+        const max = parseInt(textarea.getAttribute('maxlength') || '2000', 10);
+
+        function refreshComposer() {
+            const currentLength = textarea.value.length;
+            if (countEl) {
+                countEl.textContent = currentLength + ' / ' + max;
+                countEl.classList.toggle('warning', currentLength > Math.floor(max * 0.9));
+            }
+        }
+
+        refreshComposer();
+        textarea.addEventListener('input', refreshComposer);
+    });
+});
+</script>
 {% endblock %}
