@@ -16,7 +16,7 @@ Flask-based car rental system with customer booking flows, review support, and a
 - Verification link sent by email after registration
 - Unverified users cannot login
 - Resend verification link option on login page
-- Protected dashboard, booking, and profile routes
+- Protected booking and profile routes
 - Owner/admin protection for uploaded ID/license files
 
 ### Customer
@@ -25,6 +25,12 @@ Flask-based car rental system with customer booking flows, review support, and a
 - Select payment method (Cash, GCash, Card)
 - View, edit, and cancel own bookings
 - Submit reviews for completed bookings
+- Profile redesign with settings split pages:
+  - Settings overview/checklist
+  - Account settings page
+  - Security page
+  - Photo-only upload page
+- Support notifications with Gmail reply shortcut
 
 ### Admin
 - Dashboard with key stats
@@ -32,6 +38,7 @@ Flask-based car rental system with customer booking flows, review support, and a
 - Manage bookings and status updates
 - Manage users
 - View reports
+- Support inbox with reply flow, archive/restore, and delete action
 
 ## Tech Stack
 - Python + Flask
@@ -82,7 +89,12 @@ ADMIN_EMAILS=admin1@gmail.com,admin2@gmail.com
 FLASK_DEBUG=true
 ```
 
-5. Create tables.
+5. Create tables and baseline schema.
+
+Recommended (ensures schema is fully aligned):
+Import `database/mysql_syntax.sql` in phpMyAdmin.
+
+Alternative (app-driven table creation):
 ```bash
 python -c "from app import app, db; app.app_context().push(); db.create_all()"
 ```
@@ -98,6 +110,51 @@ Open: `http://127.0.0.1:5000`
 
 Admin access is controlled by email via `ADMIN_EMAILS`.
 Any authenticated user whose verified email is listed there is treated as admin.
+
+### Create/Reset Admin Account (Optional)
+
+If you need to create/update an admin directly in DB after a refresh, run this one-time script in project root:
+
+```powershell
+$script = @'
+from datetime import datetime
+from werkzeug.security import generate_password_hash
+from app import app, db
+from models import User
+
+ADMIN_EMAIL = 'admin@rentacar.com'
+ADMIN_PASSWORD = 'Admin@12345'
+ADMIN_NAME = 'System Admin'
+
+with app.app_context():
+  admin = User.query.filter_by(email=ADMIN_EMAIL).first()
+  if admin:
+    admin.name = admin.name or ADMIN_NAME
+    admin.is_admin = True
+    admin.email_verified = True
+    admin.email_verified_at = admin.email_verified_at or datetime.utcnow()
+    admin.password = generate_password_hash(ADMIN_PASSWORD, method='pbkdf2:sha256')
+  else:
+    admin = User(
+      name=ADMIN_NAME,
+      email=ADMIN_EMAIL,
+      contact=None,
+      password=generate_password_hash(ADMIN_PASSWORD, method='pbkdf2:sha256'),
+      is_admin=True,
+      email_verified=True,
+      email_verified_at=datetime.utcnow(),
+    )
+    db.session.add(admin)
+  db.session.commit()
+'@;
+Set-Content -Path "_create_admin_account.py" -Value $script;
+python _create_admin_account.py;
+Remove-Item "_create_admin_account.py" -Force
+```
+
+Default credentials used above:
+- Email: `admin@rentacar.com`
+- Password: `Admin@12345`
 
 ## Booking Rules
 - Overlap checks block bookings that conflict with statuses:
@@ -147,6 +204,12 @@ RentACar_Website/
     confirmation.html
     login.html
     register.html
+    profile.html
+    profile_settings.html
+    profile_account_settings.html
+    profile_security_settings.html
+    profile_photo_settings.html
+    profile_notifications.html
     about_contact.html
     admin_layout.html
     admin_dashboard.html
@@ -161,6 +224,7 @@ RentACar_Website/
 
 ## Notes
 - Use strong environment secrets in production and disable debug mode.
+- For fresh reset: clear `static/images/uploads/` and keep seed car images (`vios.png`, `city.jpg`, `montero.jpg`) unless you also plan to replace sample cars.
 
 ## System Developer
 - Errol Matthew Cudala
