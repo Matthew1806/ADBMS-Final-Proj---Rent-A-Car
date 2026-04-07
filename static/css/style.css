@@ -37,6 +37,7 @@
 @import url('./admin_bookings.css');
 @import url('./admin_booking_details.css');
 @import url('./admin_reports.css');
+@import url('./admin_support.css');
 
 /* Responsive Design (Must be last) */
 @import url('./responsive.css');

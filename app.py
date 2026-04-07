@@ -7,14 +7,15 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 import os
 from datetime import datetime, timedelta, date
 from collections import Counter
-from sqlalchemy import inspect, text, or_
-from models import db, Car, User, Booking, Review, Payment
+from sqlalchemy import inspect, text, or_, func
+from models import db, Car, User, Booking, Review, Payment, SupportConcern
 from forms import RegistrationForm, LoginForm, BookingForm, ReviewForm, CarForm, UserForm
 from dotenv import load_dotenv
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from email.message import EmailMessage
 import smtplib
 import re
+from urllib.parse import quote
 
 load_dotenv()
 
@@ -162,6 +163,14 @@ def should_assign_admin(email):
     """Check if email is configured as admin via ADMIN_EMAILS env variable."""
     return bool(email and email.lower() in app.config['ADMIN_EMAILS'])
 
+
+def build_gmail_search_url(search_query):
+    """Build a Gmail web URL that opens inbox search for a specific query."""
+    query = (search_query or '').strip()
+    if not query:
+        return 'https://mail.google.com/mail/u/0/#inbox'
+    return f"https://mail.google.com/mail/u/0/#search/{quote(query)}"
+
 # Helper Functions
 def allowed_file(filename):
     """Check if the uploaded file has an allowed extension."""
@@ -176,6 +185,33 @@ def admin_required(f):
             return redirect(url_for('home'))
         return f(*args, **kwargs)
     return decorated_function
+
+
+@app.context_processor
+def inject_admin_support_counts():
+    """Expose support inbox and user notification counts to templates."""
+    admin_unreplied_support_count = 0
+    user_unread_support_reply_count = 0
+
+    if current_user.is_authenticated:
+        try:
+            if current_user.is_admin:
+                admin_unreplied_support_count = SupportConcern.query.filter(SupportConcern.admin_reply.is_(None)).count()
+            else:
+                user_email = (current_user.email or '').strip().lower()
+                user_unread_support_reply_count = SupportConcern.query.filter(
+                    or_(SupportConcern.user_id == current_user.id, func.lower(SupportConcern.email) == user_email),
+                    SupportConcern.admin_reply.isnot(None),
+                    SupportConcern.user_has_seen_reply.is_(False)
+                ).count()
+        except Exception:
+            admin_unreplied_support_count = 0
+            user_unread_support_reply_count = 0
+
+    return {
+        'admin_unreplied_support_count': admin_unreplied_support_count,
+        'user_unread_support_reply_count': user_unread_support_reply_count
+    }
 
 def parse_price(price_str):
     """Extract numeric price from string. Returns 0.0 if invalid."""
@@ -281,6 +317,13 @@ def ensure_booking_pickup_area_column():
         db.session.execute(text("ALTER TABLE booking ADD COLUMN pickup_area VARCHAR(100) NULL AFTER contact"))
         db.session.commit()
 
+
+def ensure_support_concerns_table():
+    """Create support_concern table if missing for contact support tracking."""
+    inspector = inspect(db.engine)
+    if not inspector.has_table('support_concern'):
+        SupportConcern.__table__.create(bind=db.engine, checkfirst=True)
+
 def split_legacy_pickup_area(notes_text):
     """Split legacy merged notes that start with 'Pick-up Area: ...' into (pickup_area, notes)."""
     raw_notes = (notes_text or '').strip()
@@ -316,6 +359,7 @@ with app.app_context():
     ensure_user_email_verification_columns()
     ensure_user_otp_columns()
     ensure_booking_pickup_area_column()
+    ensure_support_concerns_table()
 
 # Public Routes
 @app.route('/')
@@ -334,8 +378,8 @@ def home():
     quick_action_cars = Car.query.order_by(Car.name.asc()).all()
     testimonial_cards = []
     for review in latest_reviews:
-        user = User.query.get(review.user_id)
-        car = Car.query.get(review.car_id)
+        user = db.session.get(User, review.user_id)
+        car = db.session.get(Car, review.car_id)
         testimonial_cards.append({
             'author': user.name if user else 'Verified Customer',
             'car_name': car.name if car else 'Rental Vehicle',
@@ -389,7 +433,7 @@ def car_reviews(car_id):
     for r in raw_reviews:
         author = None
         try:
-            user = User.query.get(r.user_id)
+            user = db.session.get(User, r.user_id)
             author = user.name if user else 'Anonymous'
         except Exception:
             author = 'Anonymous'
@@ -442,6 +486,23 @@ def about_contact():
             flash('Please provide a little more detail so we can assist you better.', 'warning')
             return render_template('about_contact.html', form_data=request.form)
 
+        concern = SupportConcern(
+            user_id=current_user.id if current_user.is_authenticated else None,
+            name=name,
+            email=email,
+            subject=subject,
+            message=message
+        )
+
+        try:
+            db.session.add(concern)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            app.logger.exception('Failed to save contact concern')
+            flash('We could not save your concern right now. Please try again.', 'danger')
+            return render_template('about_contact.html', form_data=request.form)
+
         admin_emails = [addr for addr in app.config.get('ADMIN_EMAILS', set()) if addr and '@' in addr]
         # For Gmail SMTP reliability, sender should match the authenticated mailbox.
         mail_sender = app.config.get('MAIL_USERNAME') or app.config.get('MAIL_FROM')
@@ -449,16 +510,17 @@ def about_contact():
         recipients = [addr for addr in dict.fromkeys(recipient_candidates) if addr]
 
         if not app.config.get('MAIL_SERVER') or not recipients or not mail_sender:
-            flash('Contact service is temporarily unavailable. Please try again later.', 'danger')
-            return render_template('about_contact.html', form_data=request.form)
+            flash('Your concern was submitted successfully. Our admin team will review it soon.', 'success')
+            return redirect(url_for('about_contact'))
 
         email_message = EmailMessage()
-        email_message['Subject'] = f"[Rent A Car Contact] {subject}"
+        email_message['Subject'] = f"[Rent A Car Contact #{concern.id}] {subject}"
         email_message['From'] = mail_sender
         email_message['To'] = ', '.join(recipients)
         email_message['Reply-To'] = email
         email_message.set_content(
             f"New customer concern from About page\n\n"
+            f"Ticket ID: {concern.id}\n"
             f"Name: {name}\n"
             f"Email: {email}\n"
             f"Subject: {subject}\n\n"
@@ -473,12 +535,12 @@ def about_contact():
                     smtp.login(app.config['MAIL_USERNAME'], app.config.get('MAIL_PASSWORD') or '')
                 smtp.send_message(email_message)
 
-            flash('Your message has been sent to our team. We will contact you soon.', 'success')
+            flash('Your concern has been submitted and forwarded to our admin team.', 'success')
             return redirect(url_for('about_contact'))
         except Exception:
             app.logger.exception('Failed to send contact concern from About page')
-            flash('We could not send your message right now. Please try again after a few minutes.', 'danger')
-            return render_template('about_contact.html', form_data=request.form)
+            flash('Your concern was saved, but email forwarding is delayed. Admin can still reply from the portal.', 'warning')
+            return redirect(url_for('about_contact'))
 
     return render_template('about_contact.html')
 
@@ -744,7 +806,7 @@ def verify_email(token):
         flash('Verification link is invalid or expired. Please request a new one.', 'danger')
         return redirect(url_for('login'))
 
-    user = User.query.get(payload.get('user_id'))
+    user = db.session.get(User, payload.get('user_id'))
     if not user or user.email.lower() != (payload.get('email') or '').lower():
         flash('Verification link is invalid.', 'danger')
         return redirect(url_for('login'))
@@ -902,6 +964,16 @@ def profile():
     member_since = current_user.created_at.strftime('%B %d, %Y') if current_user.created_at else 'Recently'
     membership_days = (date.today() - current_user.created_at.date()).days if current_user.created_at else 0
 
+    user_email = (current_user.email or '').strip().lower()
+    replied_support_concerns = SupportConcern.query.filter(
+        or_(SupportConcern.user_id == current_user.id, func.lower(SupportConcern.email) == user_email),
+        SupportConcern.admin_reply.isnot(None)
+    ).order_by(SupportConcern.admin_replied_at.desc()).all()
+
+    unread_support_replies = [concern for concern in replied_support_concerns if not concern.user_has_seen_reply]
+    latest_support_replies = replied_support_concerns[:3]
+    primary_support_reply = unread_support_replies[0] if unread_support_replies else (latest_support_replies[0] if latest_support_replies else None)
+
     return render_template(
         'profile.html',
         total_bookings=total_bookings,
@@ -914,7 +986,72 @@ def profile():
         profile_completion=profile_completion,
         member_since=member_since,
         membership_days=membership_days,
-        last_booking=last_booking
+        last_booking=last_booking,
+        unread_support_reply_count=len(unread_support_replies),
+        latest_support_replies=latest_support_replies,
+        primary_support_reply=primary_support_reply
+    )
+
+
+@app.route('/profile/support-replies/<int:concern_id>/open')
+@login_required
+def open_support_reply(concern_id):
+    """Mark a support reply as seen then open Gmail search for the reply subject."""
+    concern = SupportConcern.query.get_or_404(concern_id)
+
+    user_email = (current_user.email or '').strip().lower()
+    concern_email = (concern.email or '').strip().lower()
+    if concern.user_id != current_user.id and concern_email != user_email:
+        flash('You are not allowed to view this support reply.', 'danger')
+        return redirect(url_for('profile_notifications'))
+
+    if not concern.admin_reply:
+        flash('This concern does not have an admin reply yet.', 'info')
+        return redirect(url_for('profile_notifications'))
+
+    concern.user_has_seen_reply = True
+    db.session.commit()
+
+    mail_sender = app.config.get('MAIL_FROM') or app.config.get('MAIL_USERNAME') or ''
+    search_query = f'"Rent A Car Support Reply #{concern.id}"'
+    if mail_sender:
+        search_query = f'{search_query} from:{mail_sender}'
+
+    return redirect(build_gmail_search_url(search_query))
+
+
+@app.route('/profile/notifications')
+@login_required
+def profile_notifications():
+    """Dedicated support notifications page for customer reply history."""
+    status_filter = (request.args.get('status') or 'all').strip().lower()
+    user_email = (current_user.email or '').strip().lower()
+
+    base_query = SupportConcern.query.filter(
+        or_(SupportConcern.user_id == current_user.id, func.lower(SupportConcern.email) == user_email),
+        SupportConcern.admin_reply.isnot(None)
+    )
+
+    unread_count = base_query.filter(SupportConcern.user_has_seen_reply.is_(False)).count()
+    all_count = base_query.count()
+    read_count = max(0, all_count - unread_count)
+
+    notifications_query = base_query.order_by(SupportConcern.admin_replied_at.desc())
+    if status_filter == 'unread':
+        notifications_query = notifications_query.filter(SupportConcern.user_has_seen_reply.is_(False))
+    elif status_filter == 'read':
+        notifications_query = notifications_query.filter(SupportConcern.user_has_seen_reply.is_(True))
+    else:
+        status_filter = 'all'
+
+    concerns = notifications_query.all()
+    return render_template(
+        'profile_notifications.html',
+        concerns=concerns,
+        status_filter=status_filter,
+        all_count=all_count,
+        unread_count=unread_count,
+        read_count=read_count
     )
 
 # Booking Routes
@@ -976,7 +1113,7 @@ def book():
             if selected_car_id in visible_car_ids:
                 form.car.data = selected_car_id
             elif pickup_date_arg and return_date_arg:
-                selected_car = Car.query.get(selected_car_id)
+                selected_car = db.session.get(Car, selected_car_id)
                 selected_car_name = selected_car.name if selected_car else 'Selected car'
                 flash(f'{selected_car_name} is not available on selected days. Please choose another car or dates.', 'warning')
                 initial_step = max(initial_step, 2)
@@ -1079,7 +1216,7 @@ def confirmation(booking_id):
         flash('Access denied.', 'danger')
         return redirect(url_for('home'))
     
-    car = Car.query.get(booking.car_id)
+    car = db.session.get(Car, booking.car_id)
     
     # Calculate price with overlap exclusion
     price_per_day = parse_price(car.price if car else '')
@@ -1349,7 +1486,7 @@ def review(booking_id):
         flash('Thank you for your review!', 'success')
         return redirect(url_for('my_bookings'))
     
-    car = Car.query.get(booking.car_id)
+    car = db.session.get(Car, booking.car_id)
     return render_template('review.html', form=form, booking=booking, car=car)
 
 # Admin Routes
@@ -1400,8 +1537,8 @@ def admin_bookings():
 def admin_booking_details(booking_id):
     """Admin view detailed booking information."""
     booking = Booking.query.get_or_404(booking_id)
-    car = Car.query.get(booking.car_id)
-    user = User.query.get(booking.user_id)
+    car = db.session.get(Car, booking.car_id)
+    user = db.session.get(User, booking.user_id)
     pickup_area_display, notes_display = get_booking_display_pickup_area_and_notes(booking)
     booking.pickup_area_display = pickup_area_display
     booking.notes_display = notes_display
@@ -1704,6 +1841,90 @@ def admin_delete_user(user_id):
         flash(f'Error deleting user: {str(e)}', 'danger')
     
     return redirect(url_for('admin_users'))
+
+
+@app.route('/admin/support')
+@admin_required
+def admin_support():
+    """Admin inbox for customer support concerns and replies."""
+    status_filter = (request.args.get('status') or 'all').strip().lower()
+    concerns_query = SupportConcern.query.order_by(SupportConcern.created_at.desc())
+
+    if status_filter == 'unreplied':
+        concerns_query = concerns_query.filter(SupportConcern.admin_reply.is_(None))
+    elif status_filter == 'replied':
+        concerns_query = concerns_query.filter(SupportConcern.admin_reply.isnot(None))
+    else:
+        status_filter = 'all'
+
+    concerns = concerns_query.all()
+    return render_template('admin_support.html', concerns=concerns, status_filter=status_filter)
+
+
+@app.route('/admin/support/<int:concern_id>/reply', methods=['POST'])
+@admin_required
+def admin_reply_support(concern_id):
+    """Admin sends a reply for a concern and notifies customer email."""
+    concern = SupportConcern.query.get_or_404(concern_id)
+    reply_text = ' '.join((request.form.get('reply') or '').strip().split())
+
+    if len(reply_text) < 5:
+        flash('Please provide a complete reply before sending.', 'warning')
+        return redirect(url_for('admin_support'))
+
+    concern.admin_reply = reply_text
+    concern.admin_replied_at = datetime.utcnow()
+    concern.replied_by_admin_id = current_user.id
+    concern.user_has_seen_reply = False
+    db.session.commit()
+
+    mail_server = app.config.get('MAIL_SERVER')
+    mail_sender = app.config.get('MAIL_FROM') or app.config.get('MAIL_USERNAME')
+
+    if not mail_server or not mail_sender:
+        flash('Reply saved. Customer can view this reply in their profile notifications.', 'success')
+        return redirect(url_for('admin_support'))
+
+    linked_user = db.session.get(User, concern.user_id) if concern.user_id else None
+    target_email = (linked_user.email if linked_user and linked_user.email else concern.email or '').strip().lower()
+
+    if '@' not in target_email:
+        flash('Reply saved, but there is no valid customer email to send to.', 'warning')
+        return redirect(url_for('admin_support'))
+
+    email_message = EmailMessage()
+    email_message['Subject'] = f"[Rent A Car Support Reply #{concern.id}] {concern.subject}"
+    email_message['From'] = mail_sender
+    email_message['To'] = target_email
+    email_message['Reply-To'] = mail_sender
+    email_message.set_content(
+        f"Hello {concern.name},\n\n"
+        f"Our admin team replied to your concern:\n\n"
+        f"Subject: {concern.subject}\n"
+        f"Reply:\n{reply_text}\n\n"
+        "You can also check this reply in your Rent A Car profile under Support Notifications.\n"
+    )
+
+    try:
+        mail_port = int(app.config.get('MAIL_PORT', 587))
+        if mail_port == 465:
+            with smtplib.SMTP_SSL(app.config['MAIL_SERVER'], mail_port, timeout=15) as smtp:
+                if app.config.get('MAIL_USERNAME'):
+                    smtp.login(app.config['MAIL_USERNAME'], app.config.get('MAIL_PASSWORD') or '')
+                smtp.send_message(email_message)
+        else:
+            with smtplib.SMTP(app.config['MAIL_SERVER'], mail_port, timeout=15) as smtp:
+                if app.config.get('MAIL_USE_TLS'):
+                    smtp.starttls()
+                if app.config.get('MAIL_USERNAME'):
+                    smtp.login(app.config['MAIL_USERNAME'], app.config.get('MAIL_PASSWORD') or '')
+                smtp.send_message(email_message)
+        flash('Reply sent successfully and customer notification is now available.', 'success')
+    except Exception:
+        app.logger.exception('Failed to send admin support reply email')
+        flash('Reply saved, but email delivery failed. Customer can still view notification in profile.', 'warning')
+
+    return redirect(url_for('admin_support'))
 
 @app.route('/admin/reports')
 @admin_required

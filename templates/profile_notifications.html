@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block title %}Support Notifications - Rent A Car{% endblock %}
+
+{% block content %}
+<section class="profile-notifications-shell">
+    <header class="profile-notifications-header">
+        <div>
+            <p class="profile-support-kicker">Customer Support</p>
+            <h1>Notification Center</h1>
+            <p>Track admin replies to your submitted concerns and open the full email thread in Gmail.</p>
+        </div>
+        <a href="{{ url_for('about_contact') }}#contact-admin-form" class="focus-dashboard-btn">
+            <i class="fas fa-paper-plane"></i>
+            New Concern
+        </a>
+    </header>
+
+    <section class="profile-notification-metrics">
+        <article>
+            <span>All Replies</span>
+            <strong>{{ all_count }}</strong>
+        </article>
+        <article>
+            <span>Unread</span>
+            <strong>{{ unread_count }}</strong>
+        </article>
+        <article>
+            <span>Read</span>
+            <strong>{{ read_count }}</strong>
+        </article>
+    </section>
+
+    <nav class="profile-notification-filters" aria-label="Notification filters">
+        <a href="{{ url_for('profile_notifications', status='all') }}" class="{% if status_filter == 'all' %}active{% endif %}">All</a>
+        <a href="{{ url_for('profile_notifications', status='unread') }}" class="{% if status_filter == 'unread' %}active{% endif %}">Unread</a>
+        <a href="{{ url_for('profile_notifications', status='read') }}" class="{% if status_filter == 'read' %}active{% endif %}">Read</a>
+        <a href="{{ url_for('profile') }}" class="profile-filter-back">Back to Profile</a>
+    </nav>
+
+    {% if concerns %}
+    <section class="profile-notification-list">
+        {% for concern in concerns %}
+        <article class="profile-notification-card {% if not concern.user_has_seen_reply %}unread{% endif %}">
+            <div class="profile-notification-top">
+                <h3>#{{ concern.id }} - {{ concern.subject }}</h3>
+                <span class="support-state-pill {% if not concern.user_has_seen_reply %}state-unread{% else %}state-read{% endif %}">
+                    {{ 'Unread' if not concern.user_has_seen_reply else 'Read' }}
+                </span>
+            </div>
+            <p class="profile-notification-meta">
+                Replied {{ concern.admin_replied_at.strftime('%b %d, %Y %I:%M %p') if concern.admin_replied_at else 'recently' }}
+            </p>
+            <p class="profile-notification-preview">{{ (concern.admin_reply or '')[:220] }}{% if concern.admin_reply and concern.admin_reply|length > 220 %}...{% endif %}</p>
+            <div class="profile-notification-actions">
+                <a href="{{ url_for('open_support_reply', concern_id=concern.id) }}" class="focus-dashboard-btn">
+                    <i class="fas fa-envelope-open-text"></i>
+                    Open in Gmail
+                </a>
+            </div>
+        </article>
+        {% endfor %}
+    </section>
+    {% else %}
+    <div class="profile-notification-empty">
+        <i class="fas fa-bell-slash"></i>
+        <h3>No notifications for this filter</h3>
+        <p>Try another filter or send a new concern so admin can respond.</p>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

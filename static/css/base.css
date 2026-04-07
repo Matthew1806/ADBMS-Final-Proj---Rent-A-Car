@@ -148,6 +148,27 @@
     border-color: rgba(255, 255, 255, 0.22);
 }
 
+.nav-link-with-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.nav-notif-badge {
+    min-width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 6px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #ffffff;
+    background: linear-gradient(120deg, #cb4b3b, #de7a5f);
+    line-height: 1;
+}
+
 .navbar-getstarted-btn-desktop {
     color: var(--white);
     text-decoration: none;

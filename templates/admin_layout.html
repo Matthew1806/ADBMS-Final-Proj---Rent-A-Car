@@ -25,6 +25,12 @@
             <a href="{{ url_for('admin_reports') }}" class="{% if request.endpoint == 'admin_reports' %}active{% endif %}">
                 <i class="fas fa-chart-column"></i> Reports
             </a>
+            <a href="{{ url_for('admin_support') }}" class="{% if request.endpoint in ['admin_support', 'admin_reply_support'] %}active{% endif %}">
+                <i class="fas fa-headset"></i> Support Inbox
+                {% if admin_unreplied_support_count %}
+                <span class="admin-status-badge admin-status-pending">{{ admin_unreplied_support_count }}</span>
+                {% endif %}
+            </a>
             <span class="admin-settings-disabled" aria-disabled="true">
                 <i class="fas fa-gear"></i> Settings (Soon)
             </span>

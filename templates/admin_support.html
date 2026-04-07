@@ -1,0 +1,66 @@
+{% extends 'admin_layout.html' %}
+
+{% block title %}Admin Support Inbox - Rent A Car{% endblock %}
+
+{% block admin_content %}
+<section class="admin-card">
+    <div class="admin-toolbar">
+        <h2>Support Inbox</h2>
+        <div class="admin-action-group">
+            <a href="{{ url_for('admin_support', status='all') }}" class="admin-secondary-btn {% if status_filter == 'all' %}active-filter{% endif %}">All</a>
+            <a href="{{ url_for('admin_support', status='unreplied') }}" class="admin-secondary-btn {% if status_filter == 'unreplied' %}active-filter{% endif %}">Unreplied</a>
+            <a href="{{ url_for('admin_support', status='replied') }}" class="admin-secondary-btn {% if status_filter == 'replied' %}active-filter{% endif %}">Replied</a>
+        </div>
+    </div>
+
+    {% if concerns %}
+    <div class="admin-support-list">
+        {% for concern in concerns %}
+        <article class="admin-support-item">
+            <div class="admin-support-head">
+                <div>
+                    <h3>#{{ concern.id }} - {{ concern.subject }}</h3>
+                    <p>
+                        <strong>{{ concern.name }}</strong> • {{ concern.email }} •
+                        {{ concern.created_at.strftime('%b %d, %Y %I:%M %p') if concern.created_at else 'Unknown date' }}
+                    </p>
+                </div>
+                {% if concern.admin_reply %}
+                <span class="admin-status-badge admin-status-approved">Replied</span>
+                {% else %}
+                <span class="admin-status-badge admin-status-pending">Awaiting Reply</span>
+                {% endif %}
+            </div>
+
+            <div class="admin-support-message">
+                <h4>Customer Message</h4>
+                <p>{{ concern.message }}</p>
+            </div>
+
+            {% if concern.admin_reply %}
+            <div class="admin-support-reply-view">
+                <h4>Latest Admin Reply</h4>
+                <p>{{ concern.admin_reply }}</p>
+                <small>
+                    Replied {{ concern.admin_replied_at.strftime('%b %d, %Y %I:%M %p') if concern.admin_replied_at else '' }}
+                </small>
+            </div>
+            {% endif %}
+
+            <form method="post" action="{{ url_for('admin_reply_support', concern_id=concern.id) }}" class="admin-support-reply-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <label for="reply-{{ concern.id }}">Admin Reply</label>
+                <textarea id="reply-{{ concern.id }}" name="reply" rows="3" minlength="5" maxlength="2000" required placeholder="Type your reply to the customer...">{{ concern.admin_reply if concern.admin_reply else '' }}</textarea>
+                <button type="submit" class="admin-primary-btn">
+                    <i class="fas fa-paper-plane"></i>
+                    {{ 'Update Reply' if concern.admin_reply else 'Send Reply' }}
+                </button>
+            </form>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="admin-empty">No support concerns found for this filter.</p>
+    {% endif %}
+</section>
+{% endblock %}

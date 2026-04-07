@@ -102,3 +102,22 @@ class Payment(db.Model):
     user = db.relationship('User', backref='payments')  # Link to user
     booking = db.relationship('Booking', backref='payments')  # Link to booking
     payment_method = db.relationship('PaymentMethod', backref='payments')  # Link to payment method
+
+
+# ---------------- SUPPORT CONCERN TABLE ----------------
+# Stores customer concerns and admin replies for profile notifications
+class SupportConcern(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(120), nullable=False)
+    subject = db.Column(db.String(160), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    admin_reply = db.Column(db.Text, nullable=True)
+    admin_replied_at = db.Column(db.DateTime, nullable=True)
+    replied_by_admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    user_has_seen_reply = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    user = db.relationship('User', foreign_keys=[user_id], backref='support_concerns')
+    replied_by_admin = db.relationship('User', foreign_keys=[replied_by_admin_id])

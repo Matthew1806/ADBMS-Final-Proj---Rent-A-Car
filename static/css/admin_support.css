@@ -1,0 +1,114 @@
+/* ========================================
+   ADMIN SUPPORT INBOX
+   ======================================== */
+
+.admin-action-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.admin-secondary-btn.active-filter {
+    background: #1f3258;
+    color: #ffffff;
+    border-color: #1f3258;
+}
+
+.admin-support-list {
+    margin-top: 14px;
+    display: grid;
+    gap: 12px;
+}
+
+.admin-support-item {
+    border: 1px solid #dce6f4;
+    border-radius: 12px;
+    background: #fdfefe;
+    padding: 14px;
+    display: grid;
+    gap: 10px;
+}
+
+.admin-support-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.admin-support-head h3 {
+    margin: 0;
+    color: #1f3258;
+    font-size: 1.05rem;
+}
+
+.admin-support-head p {
+    margin: 5px 0 0;
+    color: #607087;
+    font-size: 0.88rem;
+}
+
+.admin-support-message,
+.admin-support-reply-view {
+    background: #ffffff;
+    border: 1px solid #e3ebf7;
+    border-radius: 10px;
+    padding: 10px;
+}
+
+.admin-support-message h4,
+.admin-support-reply-view h4 {
+    margin: 0 0 6px;
+    color: #21365b;
+    font-size: 0.9rem;
+}
+
+.admin-support-message p,
+.admin-support-reply-view p {
+    margin: 0;
+    color: #425671;
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+.admin-support-reply-view small {
+    display: block;
+    margin-top: 6px;
+    color: #6b7f99;
+}
+
+.admin-support-reply-form {
+    display: grid;
+    gap: 7px;
+}
+
+.admin-support-reply-form label {
+    color: #2a3f64;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.admin-support-reply-form textarea {
+    width: 100%;
+    border: 1px solid #cedbee;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 0.9rem;
+    color: #20314f;
+    resize: vertical;
+    min-height: 90px;
+    box-sizing: border-box;
+}
+
+.admin-support-reply-form textarea:focus {
+    outline: none;
+    border-color: #c44536;
+    box-shadow: 0 0 0 3px rgba(196, 69, 54, 0.12);
+}
+
+@media (max-width: 760px) {
+    .admin-support-head {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

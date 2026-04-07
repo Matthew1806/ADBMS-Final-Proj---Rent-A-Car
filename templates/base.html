@@ -44,7 +44,12 @@
                     <a href="{{ url_for('about_contact') }}" class="{% if request.endpoint == 'about_contact' %}active{% endif %}">About</a>
                 </div>
                 <div class="nav-account-group">
-                    <a href="{{ url_for('profile') }}" class="{% if request.endpoint == 'profile' %}active{% endif %}">Profile</a>
+                    <a href="{{ url_for('profile') }}" class="nav-link-with-badge {% if request.endpoint == 'profile' %}active{% endif %}">
+                        Profile
+                        {% if user_unread_support_reply_count > 0 %}
+                        <span class="nav-notif-badge">{{ user_unread_support_reply_count }}</span>
+                        {% endif %}
+                    </a>
                     <a href="{{ url_for('logout') }}">Logout</a>
                 </div>
             {% elif current_user.is_authenticated and current_user.is_admin %}
