@@ -5,7 +5,7 @@ from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 import os
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from collections import Counter
 from sqlalchemy import inspect, text, or_, func
 from models import db, Car, User, Booking, Review, Payment, SupportConcern
@@ -15,7 +15,7 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from email.message import EmailMessage
 import smtplib
 import re
-from urllib.parse import quote
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 load_dotenv()
 
@@ -43,6 +43,12 @@ app.config['ADMIN_EMAILS'] = {
     for email in os.getenv('ADMIN_EMAILS', '').split(',')
     if email.strip()
 }
+
+try:
+    PH_TZ = ZoneInfo('Asia/Manila')
+except ZoneInfoNotFoundError:
+    # Fallback for environments without IANA tz database (e.g., some Windows installs).
+    PH_TZ = timezone(timedelta(hours=8))
 
 # Ensure upload directory exists so file.save() does not fail.
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -159,28 +165,40 @@ def sanitize_next_path(next_path):
     return ''
 
 
+def utcnow_naive():
+    """Return current UTC time as naive datetime for DB DATETIME columns."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def to_ph_datetime(value):
+    """Convert a datetime value (stored as UTC-naive) into Asia/Manila time."""
+    if not value:
+        return None
+
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+
+    return value.astimezone(PH_TZ)
+
+
+def format_datetime_ph(value, fmt='%b %d, %Y %I:%M %p'):
+    """Format datetime consistently in PH timezone for UI display."""
+    ph_value = to_ph_datetime(value)
+    if not ph_value:
+        return ''
+    return ph_value.strftime(fmt)
+
+
+@app.template_filter('datetime_ph')
+def datetime_ph_filter(value, fmt='%b %d, %Y %I:%M %p'):
+    """Jinja filter: {{ dt|datetime_ph }} or {{ dt|datetime_ph('%Y-%m-%d') }}."""
+    return format_datetime_ph(value, fmt)
+
+
 def should_assign_admin(email):
     """Check if email is configured as admin via ADMIN_EMAILS env variable."""
     return bool(email and email.lower() in app.config['ADMIN_EMAILS'])
 
-
-def build_gmail_search_url(search_query):
-    """Build a Gmail web URL that opens inbox search for a specific query."""
-    query = (search_query or '').strip()
-    if not query:
-        return 'https://mail.google.com/mail/u/0/#inbox'
-    return f"https://mail.google.com/mail/u/0/#search/{quote(query)}"
-
-
-def build_gmail_compose_url(to_email, subject='', body=''):
-    """Build a Gmail compose URL so customer can reply directly via Gmail."""
-    recipient = (to_email or '').strip()
-    if not recipient:
-        return 'https://mail.google.com/mail/u/0/#inbox'
-
-    subject_part = quote(subject or '')
-    body_part = quote(body or '')
-    return f"https://mail.google.com/mail/u/0/?view=cm&fs=1&to={quote(recipient)}&su={subject_part}&body={body_part}"
 
 # Helper Functions
 def allowed_file(filename):
@@ -201,15 +219,16 @@ def admin_required(f):
 @app.context_processor
 def inject_admin_support_counts():
     """Expose support inbox and user notification counts to templates."""
-    admin_unreplied_support_count = 0
+    admin_unread_support_count = 0
     user_unread_support_reply_count = 0
 
     if current_user.is_authenticated:
         try:
             if current_user.is_admin:
-                admin_unreplied_support_count = SupportConcern.query.filter(
+                admin_unread_support_count = SupportConcern.query.filter(
                     SupportConcern.admin_reply.is_(None),
-                    SupportConcern.is_archived.is_(False)
+                    SupportConcern.is_archived.is_(False),
+                    SupportConcern.admin_has_seen_message.is_(False)
                 ).count()
             else:
                 user_email = (current_user.email or '').strip().lower()
@@ -217,14 +236,16 @@ def inject_admin_support_counts():
                     or_(SupportConcern.user_id == current_user.id, func.lower(SupportConcern.email) == user_email),
                     SupportConcern.admin_reply.isnot(None),
                     SupportConcern.is_archived.is_(False),
+                    SupportConcern.is_user_archived.is_(False),
+                    SupportConcern.is_user_deleted.is_(False),
                     SupportConcern.user_has_seen_reply.is_(False)
                 ).count()
         except Exception:
-            admin_unreplied_support_count = 0
+            admin_unread_support_count = 0
             user_unread_support_reply_count = 0
 
     return {
-        'admin_unreplied_support_count': admin_unreplied_support_count,
+        'admin_unread_support_count': admin_unread_support_count,
         'user_unread_support_reply_count': user_unread_support_reply_count
     }
 
@@ -369,6 +390,33 @@ def ensure_support_concern_archive_columns():
         db.session.execute(text("ALTER TABLE support_concern ADD COLUMN archived_by_admin_id INTEGER NULL AFTER archived_at"))
         db.session.commit()
 
+
+def ensure_support_concern_user_columns():
+    """Add support concern thread and user visibility columns for older databases."""
+    inspector = inspect(db.engine)
+    if not inspector.has_table('support_concern'):
+        return
+
+    column_names = {column['name'] for column in inspector.get_columns('support_concern')}
+    if 'thread_root_id' not in column_names:
+        db.session.execute(text("ALTER TABLE support_concern ADD COLUMN thread_root_id INTEGER NULL AFTER id"))
+        db.session.commit()
+    if 'is_user_archived' not in column_names:
+        db.session.execute(text("ALTER TABLE support_concern ADD COLUMN is_user_archived TINYINT(1) NOT NULL DEFAULT 0 AFTER archived_by_admin_id"))
+        db.session.commit()
+    if 'user_archived_at' not in column_names:
+        db.session.execute(text("ALTER TABLE support_concern ADD COLUMN user_archived_at DATETIME NULL AFTER is_user_archived"))
+        db.session.commit()
+    if 'is_user_deleted' not in column_names:
+        db.session.execute(text("ALTER TABLE support_concern ADD COLUMN is_user_deleted TINYINT(1) NOT NULL DEFAULT 0 AFTER user_archived_at"))
+        db.session.commit()
+    if 'user_deleted_at' not in column_names:
+        db.session.execute(text("ALTER TABLE support_concern ADD COLUMN user_deleted_at DATETIME NULL AFTER is_user_deleted"))
+        db.session.commit()
+    if 'admin_has_seen_message' not in column_names:
+        db.session.execute(text("ALTER TABLE support_concern ADD COLUMN admin_has_seen_message TINYINT(1) NOT NULL DEFAULT 0 AFTER replied_by_admin_id"))
+        db.session.commit()
+
 def split_legacy_pickup_area(notes_text):
     """Split legacy merged notes that start with 'Pick-up Area: ...' into (pickup_area, notes)."""
     raw_notes = (notes_text or '').strip()
@@ -407,6 +455,7 @@ with app.app_context():
     ensure_booking_pickup_area_column()
     ensure_support_concerns_table()
     ensure_support_concern_archive_columns()
+    ensure_support_concern_user_columns()
 
 # Public Routes
 @app.route('/')
@@ -538,11 +587,14 @@ def about_contact():
             name=name,
             email=email,
             subject=subject,
-            message=message
+            message=message,
+            admin_has_seen_message=False
         )
 
         try:
             db.session.add(concern)
+            db.session.flush()
+            concern.thread_root_id = concern.id
             db.session.commit()
         except Exception:
             db.session.rollback()
@@ -599,7 +651,7 @@ def about_contact():
 @app.route('/api/car/<int:car_id>/booked')
 def api_car_booked(car_id):
     """Return a JSON list of booked ranges for a given car."""
-    car = Car.query.get_or_404(car_id)
+    Car.query.get_or_404(car_id)
     
     # Only show Approved, Returned, and Completed bookings as blocked
     bookings = Booking.query.filter(
@@ -723,7 +775,7 @@ def login():
             flash('Please verify your email first. Check your email for the verification code.', 'warning')
             return redirect(url_for('verify_otp_page', email=email))
 
-        user.last_login_at = datetime.utcnow()
+        user.last_login_at = utcnow_naive()
         try:
             db.session.commit()
         except Exception:
@@ -757,7 +809,7 @@ def register():
         
         hashed_password = generate_password_hash(form.password.data, method='pbkdf2:sha256')
         otp = generate_otp()
-        otp_expires_at = datetime.utcnow() + timedelta(minutes=15)
+        otp_expires_at = utcnow_naive() + timedelta(minutes=15)
 
         new_user = User(
             name=form.name.data,
@@ -785,7 +837,7 @@ def register():
             send_otp_email(new_user)
             flash('Account created! Check your email for the verification code.', 'success')
             return redirect(url_for('verify_otp_page', email=email))
-        except Exception as e:
+        except Exception:
             app.logger.exception('Unable to send OTP email for user %s during registration', new_user.email)
             flash('Account created but email failed to send. Please try resending the code.', 'warning')
             return redirect(url_for('verify_otp_page', email=email))
@@ -811,14 +863,14 @@ def verify_otp_page():
         otp = request.form.get('otp', '').strip()
         
         # Check if OTP is expired
-        if user.otp_expires_at and datetime.utcnow() > user.otp_expires_at:
+        if user.otp_expires_at and utcnow_naive() > user.otp_expires_at:
             flash('Verification code expired. Please request a new one.', 'danger')
             return render_template('verify_otp.html', email=email)
         
         # Check if OTP is correct
         if user.otp == otp:
             user.email_verified = True
-            user.email_verified_at = datetime.utcnow()
+            user.email_verified_at = utcnow_naive()
             user.otp = None
             user.otp_expires_at = None
             db.session.commit()
@@ -843,7 +895,7 @@ def resend_otp():
     
     # Generate new OTP
     user.otp = generate_otp()
-    user.otp_expires_at = datetime.utcnow() + timedelta(minutes=15)
+    user.otp_expires_at = utcnow_naive() + timedelta(minutes=15)
     
     try:
         send_otp_email(user)
@@ -874,7 +926,7 @@ def verify_email(token):
         return redirect(url_for('login'))
 
     user.email_verified = True
-    user.email_verified_at = datetime.utcnow()
+    user.email_verified_at = utcnow_naive()
     db.session.commit()
     flash('Email verified successfully. You can now log in.', 'success')
     return redirect(url_for('login'))
@@ -990,13 +1042,9 @@ def profile():
     membership_days = (date.today() - current_user.created_at.date()).days if current_user.created_at else 0
 
     user_email = (current_user.email or '').strip().lower()
-    replied_support_concerns = SupportConcern.query.filter(
-        or_(SupportConcern.user_id == current_user.id, func.lower(SupportConcern.email) == user_email),
-        SupportConcern.admin_reply.isnot(None)
-    ).order_by(SupportConcern.admin_replied_at.desc()).all()
-
-    unread_support_replies = [concern for concern in replied_support_concerns if not concern.user_has_seen_reply]
-    latest_support_replies = replied_support_concerns[:2]
+    active_threads = build_user_support_threads(current_user.id, user_email, include_archived=False)
+    unread_support_replies = [thread for thread in active_threads if thread.get('has_unread_admin_reply')]
+    latest_support_threads = active_threads[:2]
 
     return render_template(
         'profile.html',
@@ -1007,7 +1055,7 @@ def profile():
         member_since=member_since,
         membership_days=membership_days,
         unread_support_reply_count=len(unread_support_replies),
-        latest_support_replies=latest_support_replies
+        latest_support_threads=latest_support_threads
     )
 
 
@@ -1093,7 +1141,7 @@ def update_profile_account():
             return redirect(url_for('profile_settings_account'))
 
         os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-        filename = secure_filename(f"profile_{current_user.id}_{int(datetime.utcnow().timestamp())}.{extension}")
+        filename = secure_filename(f"profile_{current_user.id}_{int(utcnow_naive().timestamp())}.{extension}")
         save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         profile_file.save(save_path)
         current_user.profile_picture = f"/static/images/uploads/{filename}"
@@ -1136,7 +1184,7 @@ def update_profile_photo():
         return redirect(url_for('profile_settings_photo'))
 
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-    filename = secure_filename(f"profile_{current_user.id}_{int(datetime.utcnow().timestamp())}.{extension}")
+    filename = secure_filename(f"profile_{current_user.id}_{int(utcnow_naive().timestamp())}.{extension}")
     save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     profile_file.save(save_path)
     current_user.profile_picture = f"/static/images/uploads/{filename}"
@@ -1188,69 +1236,442 @@ def change_profile_password():
     return redirect(url_for('profile_settings_security'))
 
 
-@app.route('/profile/support-replies/<int:concern_id>/open')
+@app.route('/profile/support-replies/<int:concern_id>/reply', methods=['POST'])
 @login_required
-def open_support_reply(concern_id):
-    """Mark a support reply as seen then open Gmail compose for customer reply."""
+def profile_reply_support(concern_id):
+    """Allow user to submit support follow-up directly in app (no external Gmail needed)."""
     concern = SupportConcern.query.get_or_404(concern_id)
 
     user_email = (current_user.email or '').strip().lower()
     concern_email = (concern.email or '').strip().lower()
     if concern.user_id != current_user.id and concern_email != user_email:
-        flash('You are not allowed to view this support reply.', 'danger')
+        flash('You are not allowed to reply to this support concern.', 'danger')
         return redirect(url_for('profile_notifications'))
 
-    if not concern.admin_reply:
-        flash('This concern does not have an admin reply yet.', 'info')
-        return redirect(url_for('profile_notifications'))
+    follow_up = ' '.join((request.form.get('follow_up_reply') or '').strip().split())
+    if len(follow_up) < 5:
+        flash('Please enter at least 5 characters for your reply.', 'warning')
+        return redirect(url_for('profile_notifications', status='all'))
 
-    concern.user_has_seen_reply = True
-    db.session.commit()
+    if concern.is_user_archived or concern.is_user_deleted:
+        flash('This concern is not available for reply.', 'warning')
+        return redirect(url_for('profile_notifications', status='all'))
 
-    support_email = (app.config.get('MAIL_USERNAME') or app.config.get('MAIL_FROM') or '').strip()
-    reply_subject = f"Re: [Rent A Car Support Reply #{concern.id}] {concern.subject}"
-    reply_body = (
-        f"Hello Support Team,\n\n"
-        f"This is my follow-up regarding ticket #{concern.id}.\n\n"
-        f"My reply:\n"
+    thread_root_id = resolve_thread_root_for_user(concern, current_user.id, user_email)
+    root_concern = db.session.get(SupportConcern, thread_root_id)
+    thread_subject = normalize_support_subject((root_concern.subject if root_concern else concern.subject) or concern.subject)
+
+    new_concern = SupportConcern(
+        user_id=current_user.id,
+        name=(current_user.name or concern.name or 'Customer').strip(),
+        email=(current_user.email or concern.email or '').strip(),
+        subject=thread_subject[:160],
+        message=follow_up,
+        thread_root_id=thread_root_id,
+        admin_reply=None,
+        admin_has_seen_message=False,
+        user_has_seen_reply=True,
+        is_archived=False,
+        is_user_archived=False,
+        is_user_deleted=False,
+        created_at=utcnow_naive()
     )
 
-    return redirect(build_gmail_compose_url(support_email, reply_subject, reply_body))
+    try:
+        # If the thread was archived by admin, reactivate the whole thread so follow-up
+        # continues in the same original ticket instead of creating a separate one.
+        thread_items = SupportConcern.query.filter(
+            or_(SupportConcern.id == thread_root_id, SupportConcern.thread_root_id == thread_root_id)
+        ).all()
+        for item in thread_items:
+            item.is_archived = False
+            item.archived_at = None
+            item.archived_by_admin_id = None
+
+        concern.user_has_seen_reply = True
+        db.session.add(new_concern)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Failed to save in-app support follow-up for concern %s', concern_id)
+        flash('Could not send your reply right now. Please try again.', 'danger')
+        return redirect(url_for('profile_notifications', status='all'))
+
+    # Notify admin inbox email list so follow-ups are not missed outside the web UI.
+    mail_server = app.config.get('MAIL_SERVER')
+    mail_sender = (app.config.get('MAIL_FROM') or app.config.get('MAIL_USERNAME') or '').strip()
+    admin_emails = [addr for addr in app.config.get('ADMIN_EMAILS', set()) if addr and '@' in addr]
+    fallback_admin = (app.config.get('MAIL_USERNAME') or app.config.get('MAIL_FROM') or '').strip()
+    if fallback_admin and '@' in fallback_admin and fallback_admin.lower() not in {addr.lower() for addr in admin_emails}:
+        admin_emails.append(fallback_admin)
+
+    if mail_server and mail_sender and admin_emails:
+        email_message = EmailMessage()
+        email_message['Subject'] = f"[Rent A Car Follow-up #{thread_root_id}] {thread_subject}"
+        email_message['From'] = mail_sender
+        email_message['To'] = admin_emails[0]
+        if len(admin_emails) > 1:
+            email_message['Bcc'] = ', '.join(admin_emails[1:])
+        email_message.set_content(
+            f"Customer {new_concern.name} sent a follow-up reply.\n\n"
+            f"Thread ID: #{thread_root_id}\n"
+            f"Subject: {thread_subject}\n"
+            f"Email: {new_concern.email}\n"
+            f"Sent: {new_concern.created_at.strftime('%b %d, %Y %I:%M %p UTC')}\n\n"
+            f"Message:\n{follow_up}\n"
+        )
+
+        try:
+            mail_port = int(app.config.get('MAIL_PORT', 587))
+            if mail_port == 465:
+                with smtplib.SMTP_SSL(app.config['MAIL_SERVER'], mail_port, timeout=15) as smtp:
+                    if app.config.get('MAIL_USERNAME'):
+                        smtp.login(app.config['MAIL_USERNAME'], app.config.get('MAIL_PASSWORD') or '')
+                    smtp.send_message(email_message)
+            else:
+                with smtplib.SMTP(app.config['MAIL_SERVER'], mail_port, timeout=15) as smtp:
+                    if app.config.get('MAIL_USE_TLS'):
+                        smtp.starttls()
+                    if app.config.get('MAIL_USERNAME'):
+                        smtp.login(app.config['MAIL_USERNAME'], app.config.get('MAIL_PASSWORD') or '')
+                    smtp.send_message(email_message)
+            flash('Reply sent successfully. Admin was notified.', 'success')
+        except Exception:
+            app.logger.exception('Failed to send follow-up notification email to admins')
+            flash('Reply saved in support inbox, but email notification to admin failed.', 'warning')
+    else:
+        flash('Your reply was sent to support. Admin will respond here in notifications.', 'success')
+
+    return redirect(url_for('profile_notifications', status='all'))
+
+
+def normalize_support_subject(subject):
+    """Normalize support subject so follow-ups stay under one thread title."""
+    value = (subject or '').strip()
+    if not value:
+        return 'Support Concern'
+    normalized = re.sub(r'^\s*follow[- ]?up\s*:\s*', '', value, flags=re.IGNORECASE).strip()
+    return normalized or value
+
+
+def resolve_thread_root_for_user(concern, user_id, user_email):
+    """Resolve thread root id even for legacy rows that were created before thread_root_id existed."""
+    if concern.thread_root_id:
+        return min(concern.id, concern.thread_root_id)
+
+    normalized_subject = normalize_support_subject(concern.subject)
+    owner_concerns = SupportConcern.query.filter(
+        or_(SupportConcern.user_id == user_id, func.lower(SupportConcern.email) == user_email),
+        SupportConcern.is_user_deleted.is_(False)
+    ).order_by(SupportConcern.created_at.asc(), SupportConcern.id.asc()).all()
+
+    matching_items = [item for item in owner_concerns if normalize_support_subject(item.subject) == normalized_subject]
+    if matching_items:
+        canonical_root_id = min(
+            [item.id for item in matching_items] +
+            [item.thread_root_id for item in matching_items if item.thread_root_id]
+        )
+        has_updates = False
+        for item in matching_items:
+            if item.thread_root_id != canonical_root_id:
+                item.thread_root_id = canonical_root_id
+                has_updates = True
+        if has_updates:
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+        return canonical_root_id
+
+    return concern.id
+
+
+def build_user_support_threads(user_id, user_email, include_archived=False):
+    """Return grouped support conversation threads for a user."""
+    query = SupportConcern.query.filter(
+        or_(SupportConcern.user_id == user_id, func.lower(SupportConcern.email) == user_email),
+        SupportConcern.is_user_deleted.is_(False)
+    )
+
+    if include_archived:
+        query = query.filter(SupportConcern.is_user_archived.is_(True))
+    else:
+        query = query.filter(SupportConcern.is_user_archived.is_(False))
+
+    concerns = query.order_by(SupportConcern.created_at.asc(), SupportConcern.id.asc()).all()
+    concern_ids = {item.id for item in concerns}
+    subject_roots = {}
+    has_thread_updates = False
+
+    grouped_threads = {}
+    for concern in concerns:
+        normalized_subject = normalize_support_subject(concern.subject)
+        derived_root = min(concern.id, concern.thread_root_id or concern.id)
+        if concern.thread_root_id and concern.thread_root_id in concern_ids:
+            root_id = min(concern.id, concern.thread_root_id)
+        else:
+            root_id = subject_roots.get(normalized_subject, derived_root)
+            if concern.thread_root_id != root_id:
+                concern.thread_root_id = root_id
+                has_thread_updates = True
+
+        subject_roots.setdefault(normalized_subject, root_id)
+        grouped_threads.setdefault(root_id, []).append(concern)
+
+    if has_thread_updates:
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+    threads = []
+    for root_id, messages in grouped_threads.items():
+        ordered_messages = sorted(messages, key=lambda item: (item.created_at or datetime.min, item.id))
+        root_concern = next((item for item in ordered_messages if item.id == root_id), ordered_messages[0])
+        latest_message = ordered_messages[-1]
+
+        has_any_admin_reply = any(bool((item.admin_reply or '').strip()) for item in ordered_messages)
+        has_unread_admin_reply = any(
+            bool((item.admin_reply or '').strip()) and not item.user_has_seen_reply
+            for item in ordered_messages
+        )
+        latest_has_admin_reply = bool((latest_message.admin_reply or '').strip())
+        last_activity_at = latest_message.admin_replied_at if latest_has_admin_reply else latest_message.created_at
+        if latest_has_admin_reply:
+            last_reply_actor = 'Admin'
+            last_reply_preview = (latest_message.admin_reply or '').strip()
+        else:
+            last_reply_actor = 'Customer'
+            last_reply_preview = (latest_message.message or '').strip()
+
+        threads.append({
+            'thread_id': root_id,
+            'root': root_concern,
+            'display_subject': normalize_support_subject(root_concern.subject),
+            'messages': ordered_messages,
+            'latest': latest_message,
+            'has_any_admin_reply': has_any_admin_reply,
+            'has_unread_admin_reply': has_unread_admin_reply,
+            # Pending means no admin reply yet in the whole thread.
+            'is_pending': not has_any_admin_reply,
+            'last_reply_actor': last_reply_actor,
+            'last_reply_preview': last_reply_preview,
+            'last_activity_at': last_activity_at or latest_message.created_at
+        })
+
+    threads.sort(key=lambda item: item['last_activity_at'] or datetime.min, reverse=True)
+    return threads
 
 
 @app.route('/profile/notifications')
 @login_required
 def profile_notifications():
-    """Dedicated support notifications page for customer reply history."""
+    """Dedicated support inbox showing user concerns and admin replies in one place."""
     status_filter = (request.args.get('status') or 'all').strip().lower()
+    open_thread_raw = (request.args.get('open_thread') or '').strip()
+    opened_thread_id = int(open_thread_raw) if open_thread_raw.isdigit() else None
     user_email = (current_user.email or '').strip().lower()
 
-    base_query = SupportConcern.query.filter(
-        or_(SupportConcern.user_id == current_user.id, func.lower(SupportConcern.email) == user_email),
-        SupportConcern.admin_reply.isnot(None)
-    )
+    # Mark unread admin replies in the opened thread as seen when user clicks a thread.
+    if opened_thread_id is not None:
+        opened_concern = db.session.get(SupportConcern, opened_thread_id)
+        if opened_concern:
+            concern_email = (opened_concern.email or '').strip().lower()
+            if opened_concern.user_id == current_user.id or concern_email == user_email:
+                root_id = resolve_thread_root_for_user(opened_concern, current_user.id, user_email)
+                unread_rows = SupportConcern.query.filter(
+                    or_(SupportConcern.id == root_id, SupportConcern.thread_root_id == root_id),
+                    or_(SupportConcern.user_id == current_user.id, func.lower(SupportConcern.email) == user_email),
+                    SupportConcern.admin_reply.isnot(None),
+                    SupportConcern.user_has_seen_reply.is_(False)
+                ).all()
+                if unread_rows:
+                    for row in unread_rows:
+                        row.user_has_seen_reply = True
+                    try:
+                        db.session.commit()
+                    except Exception:
+                        db.session.rollback()
 
-    unread_count = base_query.filter(SupportConcern.user_has_seen_reply.is_(False)).count()
-    all_count = base_query.count()
-    read_count = max(0, all_count - unread_count)
+    active_threads = build_user_support_threads(current_user.id, user_email, include_archived=False)
+    archived_threads = build_user_support_threads(current_user.id, user_email, include_archived=True)
 
-    notifications_query = base_query.order_by(SupportConcern.admin_replied_at.desc())
-    if status_filter == 'unread':
-        notifications_query = notifications_query.filter(SupportConcern.user_has_seen_reply.is_(False))
+    all_count = len(active_threads)
+    pending_count = sum(1 for thread in active_threads if thread['is_pending'])
+    replied_count = sum(1 for thread in active_threads if thread['has_any_admin_reply'])
+    unread_count = sum(1 for thread in active_threads if thread['has_unread_admin_reply'])
+    read_count = max(0, replied_count - unread_count)
+    archived_count = len(archived_threads)
+
+    if status_filter == 'pending':
+        threads = [thread for thread in active_threads if thread['is_pending']]
+    elif status_filter == 'replied':
+        threads = [thread for thread in active_threads if thread['has_any_admin_reply']]
+    elif status_filter == 'archived':
+        threads = archived_threads
+    elif status_filter == 'unread':
+        threads = [thread for thread in active_threads if thread['has_unread_admin_reply']]
     elif status_filter == 'read':
-        notifications_query = notifications_query.filter(SupportConcern.user_has_seen_reply.is_(True))
+        threads = [thread for thread in active_threads if thread['has_any_admin_reply'] and not thread['has_unread_admin_reply']]
     else:
         status_filter = 'all'
+        threads = active_threads
 
-    concerns = notifications_query.all()
     return render_template(
         'profile_notifications.html',
-        concerns=concerns,
+        threads=threads,
+        opened_thread_id=opened_thread_id,
         status_filter=status_filter,
         all_count=all_count,
+        pending_count=pending_count,
+        replied_count=replied_count,
+        archived_count=archived_count,
         unread_count=unread_count,
         read_count=read_count
     )
+
+
+@app.route('/profile/notifications/<int:thread_id>/mark-seen')
+@login_required
+def mark_profile_notification_thread_seen(thread_id):
+    """Mark unread admin replies as seen for a thread without reloading the page."""
+    concern = db.session.get(SupportConcern, thread_id)
+    if not concern:
+        return jsonify({'ok': False, 'error': 'Thread not found'}), 404
+
+    user_email = (current_user.email or '').strip().lower()
+    concern_email = (concern.email or '').strip().lower()
+    if concern.user_id != current_user.id and concern_email != user_email:
+        return jsonify({'ok': False, 'error': 'Forbidden'}), 403
+
+    root_id = resolve_thread_root_for_user(concern, current_user.id, user_email)
+    unread_rows = SupportConcern.query.filter(
+        or_(SupportConcern.id == root_id, SupportConcern.thread_root_id == root_id),
+        or_(SupportConcern.user_id == current_user.id, func.lower(SupportConcern.email) == user_email),
+        SupportConcern.admin_reply.isnot(None),
+        SupportConcern.user_has_seen_reply.is_(False)
+    ).all()
+
+    if not unread_rows:
+        return jsonify({'ok': True, 'updated': 0})
+
+    for row in unread_rows:
+        row.user_has_seen_reply = True
+
+    try:
+        db.session.commit()
+        return jsonify({'ok': True, 'updated': len(unread_rows)})
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Failed to mark thread %s as seen', thread_id)
+        return jsonify({'ok': False, 'error': 'Unable to update'}), 500
+
+
+@app.route('/profile/notifications/<int:concern_id>/archive', methods=['POST'])
+@login_required
+def archive_profile_notification_thread(concern_id):
+    """Archive a support thread from the user's notification center."""
+    concern = SupportConcern.query.get_or_404(concern_id)
+    user_email = (current_user.email or '').strip().lower()
+    concern_email = (concern.email or '').strip().lower()
+    if concern.user_id != current_user.id and concern_email != user_email:
+        flash('You are not allowed to archive this thread.', 'danger')
+        return redirect(url_for('profile_notifications'))
+
+    root_id = resolve_thread_root_for_user(concern, current_user.id, user_email)
+    thread_items = SupportConcern.query.filter(
+        or_(SupportConcern.id == root_id, SupportConcern.thread_root_id == root_id),
+        or_(SupportConcern.user_id == current_user.id, func.lower(SupportConcern.email) == user_email),
+        SupportConcern.is_user_deleted.is_(False)
+    ).all()
+
+    if not thread_items:
+        flash('Thread not found.', 'warning')
+        return redirect(url_for('profile_notifications'))
+
+    for item in thread_items:
+        item.is_user_archived = True
+        item.user_archived_at = utcnow_naive()
+
+    try:
+        db.session.commit()
+        flash('Thread archived.', 'success')
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Failed to archive thread for concern %s', concern_id)
+        flash('Could not archive this thread right now. Please try again.', 'danger')
+
+    return redirect(url_for('profile_notifications'))
+
+
+@app.route('/profile/notifications/<int:concern_id>/restore', methods=['POST'])
+@login_required
+def restore_profile_notification_thread(concern_id):
+    """Restore an archived support thread back to active notifications."""
+    concern = SupportConcern.query.get_or_404(concern_id)
+    user_email = (current_user.email or '').strip().lower()
+    concern_email = (concern.email or '').strip().lower()
+    if concern.user_id != current_user.id and concern_email != user_email:
+        flash('You are not allowed to restore this thread.', 'danger')
+        return redirect(url_for('profile_notifications', status='archived'))
+
+    root_id = resolve_thread_root_for_user(concern, current_user.id, user_email)
+    thread_items = SupportConcern.query.filter(
+        or_(SupportConcern.id == root_id, SupportConcern.thread_root_id == root_id),
+        or_(SupportConcern.user_id == current_user.id, func.lower(SupportConcern.email) == user_email),
+        SupportConcern.is_user_deleted.is_(False)
+    ).all()
+
+    for item in thread_items:
+        item.is_user_archived = False
+        item.user_archived_at = None
+
+    try:
+        db.session.commit()
+        flash('Thread restored to Notification Center.', 'success')
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Failed to restore thread for concern %s', concern_id)
+        flash('Could not restore this thread right now. Please try again.', 'danger')
+
+    return redirect(url_for('profile_notifications', status='archived'))
+
+
+@app.route('/profile/notifications/<int:concern_id>/delete', methods=['POST'])
+@login_required
+def delete_profile_notification_thread(concern_id):
+    """Soft delete a support thread from user notifications only."""
+    concern = SupportConcern.query.get_or_404(concern_id)
+    user_email = (current_user.email or '').strip().lower()
+    concern_email = (concern.email or '').strip().lower()
+    if concern.user_id != current_user.id and concern_email != user_email:
+        flash('You are not allowed to delete this thread.', 'danger')
+        return redirect(url_for('profile_notifications'))
+
+    root_id = resolve_thread_root_for_user(concern, current_user.id, user_email)
+    thread_items = SupportConcern.query.filter(
+        or_(SupportConcern.id == root_id, SupportConcern.thread_root_id == root_id),
+        or_(SupportConcern.user_id == current_user.id, func.lower(SupportConcern.email) == user_email),
+        SupportConcern.is_user_deleted.is_(False)
+    ).all()
+
+    if not thread_items:
+        flash('Thread already deleted.', 'info')
+        return redirect(url_for('profile_notifications'))
+
+    for item in thread_items:
+        item.is_user_deleted = True
+        item.user_deleted_at = utcnow_naive()
+
+    try:
+        db.session.commit()
+        flash('Thread deleted from your Notification Center.', 'success')
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Failed to delete thread for concern %s', concern_id)
+        flash('Could not delete this thread right now. Please try again.', 'danger')
+
+    return redirect(url_for('profile_notifications'))
 
 
 @app.route('/profile/notifications/mark-all-read', methods=['POST'])
@@ -1261,6 +1682,8 @@ def mark_all_profile_notifications_read():
     unread_replies = SupportConcern.query.filter(
         or_(SupportConcern.user_id == current_user.id, func.lower(SupportConcern.email) == user_email),
         SupportConcern.admin_reply.isnot(None),
+        SupportConcern.is_user_archived.is_(False),
+        SupportConcern.is_user_deleted.is_(False),
         SupportConcern.user_has_seen_reply.is_(False)
     ).all()
 
@@ -1603,7 +2026,7 @@ def my_bookings():
         
         return render_template('my_bookings.html', bookings_by_status=bookings_by_status, total_bookings=len(all_bookings))
     
-    except Exception as e:
+    except Exception:
         flash('An error occurred while loading your bookings.', 'danger')
         return redirect(url_for('home'))
 
@@ -2012,7 +2435,7 @@ def admin_add_user():
             password=hashed_password,
             is_admin=form.is_admin.data == 'True',
             email_verified=True,
-            email_verified_at=datetime.utcnow()
+            email_verified_at=utcnow_naive()
         )
         
         db.session.add(user)
@@ -2078,40 +2501,32 @@ def admin_delete_user(user_id):
 @app.route('/admin/support')
 @admin_required
 def admin_support():
-    """Admin inbox for customer support concerns and replies."""
+    """Admin inbox in threaded conversation view."""
     status_filter = (request.args.get('status') or 'all').strip().lower()
-    concerns_query = SupportConcern.query.order_by(SupportConcern.created_at.desc())
 
-    if status_filter == 'archived':
-        concerns_query = concerns_query.filter(SupportConcern.is_archived.is_(True))
+    active_threads = build_admin_support_threads(include_archived=False)
+    archived_threads = build_admin_support_threads(include_archived=True)
+
+    total_active_count = len(active_threads)
+    active_unread_count = sum(1 for thread in active_threads if thread['has_unread_customer_message'])
+    active_replied_count = sum(1 for thread in active_threads if not thread['has_unread_customer_message'])
+    archived_count = len(archived_threads)
+
+    if status_filter == 'unread':
+        threads = [thread for thread in active_threads if thread['has_unread_customer_message']]
+    elif status_filter == 'archived':
+        threads = archived_threads
     else:
-        concerns_query = concerns_query.filter(SupportConcern.is_archived.is_(False))
-        if status_filter == 'unreplied':
-            concerns_query = concerns_query.filter(SupportConcern.admin_reply.is_(None))
-        elif status_filter == 'replied':
-            concerns_query = concerns_query.filter(SupportConcern.admin_reply.isnot(None))
-        else:
-            status_filter = 'all'
+        status_filter = 'all'
+        threads = active_threads
 
-    total_active_count = SupportConcern.query.filter(SupportConcern.is_archived.is_(False)).count()
-    active_replied_count = SupportConcern.query.filter(
-        SupportConcern.is_archived.is_(False),
-        SupportConcern.admin_reply.isnot(None)
-    ).count()
-    active_unreplied_count = SupportConcern.query.filter(
-        SupportConcern.is_archived.is_(False),
-        SupportConcern.admin_reply.is_(None)
-    ).count()
-    archived_count = SupportConcern.query.filter(SupportConcern.is_archived.is_(True)).count()
-
-    concerns = concerns_query.all()
     return render_template(
         'admin_support.html',
-        concerns=concerns,
+        threads=threads,
         status_filter=status_filter,
         total_active_count=total_active_count,
         active_replied_count=active_replied_count,
-        active_unreplied_count=active_unreplied_count,
+        active_unread_count=active_unread_count,
         archived_count=archived_count
     )
 
@@ -2128,8 +2543,9 @@ def admin_reply_support(concern_id):
         return redirect(url_for('admin_support'))
 
     concern.admin_reply = reply_text
-    concern.admin_replied_at = datetime.utcnow()
+    concern.admin_replied_at = utcnow_naive()
     concern.replied_by_admin_id = current_user.id
+    concern.admin_has_seen_message = True
     concern.user_has_seen_reply = False
     db.session.commit()
 
@@ -2182,18 +2598,90 @@ def admin_reply_support(concern_id):
     return redirect(url_for('admin_support'))
 
 
+@app.route('/admin/support/mark-all-read', methods=['POST'])
+@admin_required
+def admin_mark_all_support_read():
+    """Mark all unread customer messages as read in active admin inbox."""
+    unread_messages = SupportConcern.query.filter(
+        SupportConcern.is_archived.is_(False),
+        SupportConcern.admin_reply.is_(None),
+        SupportConcern.admin_has_seen_message.is_(False)
+    ).all()
+
+    if not unread_messages:
+        flash('No unread customer messages found.', 'info')
+        return redirect(url_for('admin_support'))
+
+    for message in unread_messages:
+        message.admin_has_seen_message = True
+
+    try:
+        db.session.commit()
+        flash(f'Marked {len(unread_messages)} customer message(s) as read.', 'success')
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Failed to mark admin support messages as read')
+        flash('Could not update support messages right now. Please try again.', 'danger')
+
+    return redirect(url_for('admin_support'))
+
+
+@app.route('/admin/support/<int:concern_id>/mark-read')
+@admin_required
+def admin_mark_support_thread_read(concern_id):
+    """Mark unread customer messages as read for one admin support thread."""
+    concern = SupportConcern.query.get_or_404(concern_id)
+    root_id = resolve_thread_root_for_admin(concern)
+
+    unread_messages = SupportConcern.query.filter(
+        or_(SupportConcern.id == root_id, SupportConcern.thread_root_id == root_id),
+        SupportConcern.admin_reply.is_(None),
+        SupportConcern.admin_has_seen_message.is_(False)
+    ).all()
+
+    if not unread_messages:
+        remaining_unread_count = SupportConcern.query.filter(
+            SupportConcern.is_archived.is_(False),
+            SupportConcern.admin_reply.is_(None),
+            SupportConcern.admin_has_seen_message.is_(False)
+        ).count()
+        return jsonify({'ok': True, 'updated': 0, 'remaining_unread_count': remaining_unread_count})
+
+    for message in unread_messages:
+        message.admin_has_seen_message = True
+
+    try:
+        db.session.commit()
+        remaining_unread_count = SupportConcern.query.filter(
+            SupportConcern.is_archived.is_(False),
+            SupportConcern.admin_reply.is_(None),
+            SupportConcern.admin_has_seen_message.is_(False)
+        ).count()
+        return jsonify({'ok': True, 'updated': len(unread_messages), 'remaining_unread_count': remaining_unread_count})
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Failed to mark support thread %s as read', concern_id)
+        return jsonify({'ok': False, 'error': 'Unable to update'}), 500
+
+
 @app.route('/admin/support/<int:concern_id>/archive', methods=['POST'])
 @admin_required
 def admin_archive_support(concern_id):
-    """Archive a support concern from active inbox view."""
+    """Archive a full support thread from active inbox view."""
     concern = SupportConcern.query.get_or_404(concern_id)
+    root_id = resolve_thread_root_for_admin(concern)
+    thread_items = SupportConcern.query.filter(
+        or_(SupportConcern.id == root_id, SupportConcern.thread_root_id == root_id)
+    ).all()
 
     try:
-        concern.is_archived = True
-        concern.archived_at = datetime.utcnow()
-        concern.archived_by_admin_id = current_user.id
+        archived_at = utcnow_naive()
+        for item in thread_items:
+            item.is_archived = True
+            item.archived_at = archived_at
+            item.archived_by_admin_id = current_user.id
         db.session.commit()
-        flash(f'Support concern #{concern_id} archived.', 'success')
+        flash(f'Support thread #{root_id} archived.', 'success')
     except Exception:
         db.session.rollback()
         app.logger.exception('Failed to archive support concern %s', concern_id)
@@ -2205,15 +2693,20 @@ def admin_archive_support(concern_id):
 @app.route('/admin/support/<int:concern_id>/unarchive', methods=['POST'])
 @admin_required
 def admin_unarchive_support(concern_id):
-    """Restore an archived support concern back to active inbox view."""
+    """Restore an archived support thread back to active inbox view."""
     concern = SupportConcern.query.get_or_404(concern_id)
+    root_id = resolve_thread_root_for_admin(concern)
+    thread_items = SupportConcern.query.filter(
+        or_(SupportConcern.id == root_id, SupportConcern.thread_root_id == root_id)
+    ).all()
 
     try:
-        concern.is_archived = False
-        concern.archived_at = None
-        concern.archived_by_admin_id = None
+        for item in thread_items:
+            item.is_archived = False
+            item.archived_at = None
+            item.archived_by_admin_id = None
         db.session.commit()
-        flash(f'Support concern #{concern_id} restored to active inbox.', 'success')
+        flash(f'Support thread #{root_id} restored to active inbox.', 'success')
     except Exception:
         db.session.rollback()
         app.logger.exception('Failed to unarchive support concern %s', concern_id)
@@ -2225,19 +2718,126 @@ def admin_unarchive_support(concern_id):
 @app.route('/admin/support/<int:concern_id>/delete', methods=['POST'])
 @admin_required
 def admin_delete_support(concern_id):
-    """Delete a support concern from admin inbox."""
+    """Delete a full support thread from admin inbox."""
     concern = SupportConcern.query.get_or_404(concern_id)
+    root_id = resolve_thread_root_for_admin(concern)
+    thread_items = SupportConcern.query.filter(
+        or_(SupportConcern.id == root_id, SupportConcern.thread_root_id == root_id)
+    ).all()
 
     try:
-        db.session.delete(concern)
+        for item in thread_items:
+            db.session.delete(item)
         db.session.commit()
-        flash(f'Support concern #{concern_id} deleted successfully.', 'success')
+        flash(f'Support thread #{root_id} deleted successfully.', 'success')
     except Exception:
         db.session.rollback()
         app.logger.exception('Failed to delete support concern %s', concern_id)
         flash('Could not delete support concern right now. Please try again.', 'danger')
 
     return redirect(url_for('admin_support'))
+
+
+def resolve_thread_root_for_admin(concern):
+    """Resolve thread root id for admin, including legacy rows without root id."""
+    if concern.thread_root_id:
+        return min(concern.id, concern.thread_root_id)
+
+    normalized_subject = normalize_support_subject(concern.subject)
+    base_query = SupportConcern.query
+    if concern.user_id:
+        base_query = base_query.filter(SupportConcern.user_id == concern.user_id)
+    else:
+        base_query = base_query.filter(func.lower(SupportConcern.email) == (concern.email or '').strip().lower())
+
+    owner_concerns = base_query.order_by(SupportConcern.created_at.asc(), SupportConcern.id.asc()).all()
+    matching_items = [item for item in owner_concerns if normalize_support_subject(item.subject) == normalized_subject]
+    if matching_items:
+        canonical_root_id = min(
+            [item.id for item in matching_items] +
+            [item.thread_root_id for item in matching_items if item.thread_root_id]
+        )
+        has_updates = False
+        for item in matching_items:
+            if item.thread_root_id != canonical_root_id:
+                item.thread_root_id = canonical_root_id
+                has_updates = True
+        if has_updates:
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+        return canonical_root_id
+
+    return concern.id
+
+
+def build_admin_support_threads(include_archived=False):
+    """Return grouped support conversation threads for admin inbox."""
+    query = SupportConcern.query
+    if include_archived:
+        query = query.filter(SupportConcern.is_archived.is_(True))
+    else:
+        query = query.filter(SupportConcern.is_archived.is_(False))
+
+    concerns = query.order_by(SupportConcern.created_at.asc(), SupportConcern.id.asc()).all()
+    subject_roots = {}
+    has_thread_updates = False
+    grouped_threads = {}
+
+    for concern in concerns:
+        owner_key = concern.user_id if concern.user_id else (concern.email or '').strip().lower()
+        subject_key = (owner_key, normalize_support_subject(concern.subject))
+        derived_root = min(concern.id, concern.thread_root_id or concern.id)
+
+        if concern.thread_root_id:
+            root_id = min(concern.id, concern.thread_root_id)
+        else:
+            root_id = subject_roots.get(subject_key, derived_root)
+            if concern.thread_root_id != root_id:
+                concern.thread_root_id = root_id
+                has_thread_updates = True
+
+        subject_roots.setdefault(subject_key, root_id)
+        grouped_threads.setdefault(root_id, []).append(concern)
+
+    if has_thread_updates:
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+    threads = []
+    for root_id, items in grouped_threads.items():
+        ordered_messages = sorted(items, key=lambda item: (item.created_at or datetime.min, item.id))
+        root_concern = next((item for item in ordered_messages if item.id == root_id), None)
+        if not root_concern:
+            root_concern = db.session.get(SupportConcern, root_id) or ordered_messages[0]
+        latest_message = ordered_messages[-1]
+        pending_items = [item for item in ordered_messages if not (item.admin_reply or '').strip()]
+        pending_target = pending_items[-1] if pending_items else None
+        unread_customer_items = [item for item in pending_items if not item.admin_has_seen_message]
+
+        has_any_admin_reply = any(bool((item.admin_reply or '').strip()) for item in ordered_messages)
+        has_pending = bool(pending_target)
+        has_unread_customer_message = bool(unread_customer_items)
+        last_activity_at = latest_message.admin_replied_at if (latest_message.admin_reply or '').strip() else latest_message.created_at
+
+        threads.append({
+            'thread_id': root_id,
+            'root': root_concern,
+            'display_subject': normalize_support_subject(root_concern.subject),
+            'messages': ordered_messages,
+            'latest': latest_message,
+            'pending_target': pending_target,
+            'has_pending': has_pending,
+            'has_unread_customer_message': has_unread_customer_message,
+            'has_any_admin_reply': has_any_admin_reply,
+            'last_activity_at': last_activity_at or latest_message.created_at
+        })
+
+    threads.sort(key=lambda item: item['last_activity_at'] or datetime.min, reverse=True)
+    return threads
 
 @app.route('/admin/reports')
 @admin_required
@@ -2271,7 +2871,7 @@ def admin_reports():
     } for status in availability_order]
 
     # Build six-month booking and revenue trends.
-    now = datetime.utcnow()
+    now = utcnow_naive()
     month_keys = []
     for step in range(5, -1, -1):
         month_index = (now.year * 12 + (now.month - 1)) - step

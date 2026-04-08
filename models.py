@@ -109,6 +109,7 @@ class Payment(db.Model):
 # Stores customer concerns and admin replies for profile notifications
 class SupportConcern(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    thread_root_id = db.Column(db.Integer, nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), nullable=False)
@@ -117,10 +118,15 @@ class SupportConcern(db.Model):
     admin_reply = db.Column(db.Text, nullable=True)
     admin_replied_at = db.Column(db.DateTime, nullable=True)
     replied_by_admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    admin_has_seen_message = db.Column(db.Boolean, default=False, nullable=False)
     user_has_seen_reply = db.Column(db.Boolean, default=False, nullable=False)
     is_archived = db.Column(db.Boolean, default=False, nullable=False)
     archived_at = db.Column(db.DateTime, nullable=True)
     archived_by_admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    is_user_archived = db.Column(db.Boolean, default=False, nullable=False)
+    user_archived_at = db.Column(db.DateTime, nullable=True)
+    is_user_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    user_deleted_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     user = db.relationship('User', foreign_keys=[user_id], backref='support_concerns')

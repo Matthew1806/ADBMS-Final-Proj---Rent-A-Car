@@ -27,9 +27,7 @@
             </a>
             <a href="{{ url_for('admin_support') }}" class="{% if request.endpoint in ['admin_support', 'admin_reply_support'] %}active{% endif %}">
                 <i class="fas fa-headset"></i> Support Inbox
-                {% if admin_unreplied_support_count %}
-                <span class="admin-status-badge admin-status-pending">{{ admin_unreplied_support_count }}</span>
-                {% endif %}
+                <span id="admin-support-nav-badge" class="admin-status-badge admin-status-pending" {% if not admin_unread_support_count %}hidden{% endif %}>{{ admin_unread_support_count }}</span>
             </a>
             <span class="admin-settings-disabled" aria-disabled="true">
                 <i class="fas fa-gear"></i> Settings (Soon)

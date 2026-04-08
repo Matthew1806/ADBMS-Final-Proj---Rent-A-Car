@@ -74,18 +74,17 @@
         {% if unread_support_reply_count > 0 %}
         <p class="profile-support-kicker">You have {{ unread_support_reply_count }} unread support {{ 'reply' if unread_support_reply_count == 1 else 'replies' }}.</p>
         {% endif %}
-        {% if latest_support_replies %}
-            {% for concern in latest_support_replies %}
-            <a href="{{ url_for('open_support_reply', concern_id=concern.id) }}" class="support-reply-item {% if not concern.user_has_seen_reply %}unread{% endif %}">
+        {% if latest_support_threads %}
+            {% for thread in latest_support_threads %}
+            <a href="{{ url_for('profile_notifications', open_thread=thread.thread_id) }}" class="support-reply-item {% if thread.has_unread_admin_reply %}unread{% endif %}">
                 <div class="support-reply-top">
-                    <strong>#{{ concern.id }} - {{ concern.subject }}</strong>
-                    <span class="support-state-pill {% if not concern.user_has_seen_reply %}state-unread{% else %}state-read{% endif %}">
-                        {{ 'New' if not concern.user_has_seen_reply else 'Seen' }}
+                    <strong>{{ thread.display_subject }}</strong>
+                    <span class="support-state-pill {% if thread.has_unread_admin_reply %}state-unread{% else %}state-read{% endif %}">
+                        {{ 'Unread' if thread.has_unread_admin_reply else 'Read' }}
                     </span>
                 </div>
-                <span>{{ concern.admin_replied_at.strftime('%b %d, %Y %I:%M %p') if concern.admin_replied_at else 'Recently replied' }}</span>
-                <small>{{ (concern.admin_reply or '')[:120] }}{% if concern.admin_reply and concern.admin_reply|length > 120 %}...{% endif %}</small>
-                <em>Reply via Gmail</em>
+                <p class="support-reply-preview"><span>{{ 'Rent A Car:' if thread.last_reply_actor == 'Admin' else 'You:' }}</span> {{ thread.last_reply_preview if thread.last_reply_preview else 'No message preview available.' }}</p>
+                <small>Last update {{ thread.last_activity_at|datetime_ph('%b %d, %Y %I:%M %p') if thread.last_activity_at else 'recently' }}</small>
             </a>
             {% endfor %}
         {% else %}

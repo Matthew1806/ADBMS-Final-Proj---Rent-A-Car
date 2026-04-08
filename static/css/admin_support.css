@@ -92,7 +92,7 @@
     border-left: 4px solid #d8e3f2;
     border-radius: 14px;
     background: #fdfefe;
-    padding: 15px;
+    padding: 0;
     display: grid;
     gap: 12px;
     box-shadow: 0 8px 20px rgba(16, 31, 58, 0.06);
@@ -117,6 +117,42 @@
     justify-content: space-between;
     gap: 10px;
     align-items: flex-start;
+}
+
+.admin-thread-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 15px;
+    border-bottom: 1px solid #e2eaf7;
+}
+
+.admin-thread-toggle {
+    background: transparent;
+    border: 0;
+    margin: 0;
+    padding: 0;
+    text-align: left;
+    width: 100%;
+    cursor: pointer;
+}
+
+.admin-thread-actions {
+    flex-shrink: 0;
+}
+
+.admin-thread-body {
+    padding: 12px 15px 15px;
+    display: grid;
+    gap: 10px;
+    max-height: 420px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.admin-thread-body.is-hidden {
+    display: none;
 }
 
 .admin-support-head h3 {
@@ -178,9 +214,28 @@
     color: #6b7f99;
 }
 
+.admin-thread-date {
+    display: block;
+    margin-bottom: 8px;
+    color: #6b7f99;
+}
+
 .admin-support-reply-form {
     display: grid;
     gap: 8px;
+}
+
+.admin-reply-editor {
+    display: grid;
+    gap: 8px;
+}
+
+.admin-reply-editor.is-collapsed {
+    display: none;
+}
+
+.admin-edit-reply-btn {
+    justify-self: start;
 }
 
 .admin-support-reply-form label {
@@ -232,6 +287,15 @@
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
+}
+
+.admin-thread-actions form {
+    margin: 0;
+}
+
+.admin-update-reply-btn.is-hidden,
+.admin-edit-reply-btn.is-hidden {
+    display: none;
 }
 
 .admin-support-status-archived {

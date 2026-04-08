@@ -87,6 +87,7 @@ CREATE TABLE review (
 
 CREATE TABLE support_concern (
   id INT AUTO_INCREMENT PRIMARY KEY,
+  thread_root_id INT NULL,
   user_id INT NULL,
   name VARCHAR(100) NOT NULL,
   email VARCHAR(120) NOT NULL,
@@ -95,10 +96,15 @@ CREATE TABLE support_concern (
   admin_reply TEXT NULL,
   admin_replied_at DATETIME NULL,
   replied_by_admin_id INT NULL,
+  admin_has_seen_message BOOLEAN NOT NULL DEFAULT FALSE,
   user_has_seen_reply BOOLEAN NOT NULL DEFAULT FALSE,
   is_archived BOOLEAN NOT NULL DEFAULT FALSE,
   archived_at DATETIME NULL,
   archived_by_admin_id INT NULL,
+  is_user_archived BOOLEAN NOT NULL DEFAULT FALSE,
+  user_archived_at DATETIME NULL,
+  is_user_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  user_deleted_at DATETIME NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES `user`(id),
   FOREIGN KEY (replied_by_admin_id) REFERENCES `user`(id),
