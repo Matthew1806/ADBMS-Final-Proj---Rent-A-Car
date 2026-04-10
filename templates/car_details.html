@@ -5,6 +5,8 @@
 {% block content %}
 <section class="car-details-section">
     {% set display_price = '₱' ~ (car.price|string|replace('₱', '')|replace('PHP', '')|replace('Php', '')|replace('php', '')|trim) %}
+    {% set status_norm = (car.availability or 'Available')|lower|replace('-', ' ') %}
+    {% set is_unbookable = status_norm in ['rented', 'maintenance', 'under maintenance'] %}
 
     <div class="car-details-header">
         <div class="header-content">
@@ -28,9 +30,15 @@
             </div>
             
             <div class="details-action-buttons">
-                <a href="{{ url_for('book') }}" class="details-proceedrent-button">
-                    <i class="fas fa-key"></i> Proceed to Rent
-                </a>
+                {% if is_unbookable %}
+                    <span class="details-proceedrent-button is-disabled" aria-disabled="true" title="This car is currently {{ car.availability }} and cannot be booked.">
+                        <i class="fas fa-key"></i> Proceed to Rent
+                    </span>
+                {% else %}
+                    <a href="{{ url_for('book', car_id=car.id, start_step=2) }}" class="details-proceedrent-button">
+                        <i class="fas fa-key"></i> Proceed to Rent
+                    </a>
+                {% endif %}
                 <a href="{{ url_for('cars_page') }}" class="details-backtocars-button">
                     <i class="fas fa-arrow-left"></i> Back to Cars
                 </a>

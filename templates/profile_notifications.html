@@ -47,36 +47,27 @@
         {% for thread in threads %}
         <article class="profile-notification-card profile-thread-item {% if thread.has_unread_admin_reply %}unread{% endif %}">
             <div class="profile-thread-header">
-                <button type="button" class="profile-thread-toggle"
-                   data-thread-id="{{ thread.thread_id }}"
-                   data-target="thread-body-{{ thread.thread_id }}"
-                   data-mark-seen-url="{{ url_for('mark_profile_notification_thread_seen', thread_id=thread.thread_id) }}">
+                <a href="{{ url_for('profile_notification_thread', thread_id=thread.thread_id, status=status_filter) }}" class="profile-thread-toggle" aria-label="Open support thread {{ thread.display_subject }}">
                     <div class="profile-notification-top">
                         <h3>{{ thread.display_subject }}</h3>
-                        <span class="support-state-pill {% if thread.has_unread_admin_reply %}state-unread{% elif thread.last_reply_actor == 'Customer' %}state-sent{% elif thread.has_any_admin_reply %}state-read{% else %}state-sent{% endif %}">
+                        <span class="support-state-pill {% if thread.has_unread_admin_reply %}state-unread{% else %}state-read{% endif %}">
                             {% if thread.has_unread_admin_reply %}
                                 Unread
-                            {% elif thread.last_reply_actor == 'Customer' %}
-                                Sent
-                            {% elif thread.has_any_admin_reply %}
-                                Read
                             {% else %}
-                                Sent
+                                Read
                             {% endif %}
                         </span>
                     </div>
-                    {% if opened_thread_id != thread.thread_id %}
                     <div class="profile-thread-preview">
                         <p>
                             <span>{{ 'Rent A Car:' if thread.last_reply_actor == 'Admin' else 'You:' }}</span>
                             {{ thread.last_reply_preview if thread.last_reply_preview else 'No message preview available.' }}
                         </p>
                     </div>
-                    {% endif %}
                     <p class="profile-notification-meta">
                         Last update {{ thread.last_activity_at|datetime_ph('%b %d, %Y %I:%M %p') if thread.last_activity_at else 'recently' }}
                     </p>
-                </button>
+                </a>
 
                 <div class="profile-thread-actions profile-thread-actions-visible">
                     {% if status_filter == 'archived' %}
@@ -97,60 +88,6 @@
                     </form>
                 </div>
             </div>
-
-            <div class="profile-thread-body {% if opened_thread_id != thread.thread_id %}is-hidden{% endif %}" id="thread-body-{{ thread.thread_id }}">
-                {% for message in thread.messages %}
-                <div class="profile-notification-block">
-                    <div class="profile-thread-entry-head">
-                        <h4>You</h4>
-                        <small>{{ message.created_at|datetime_ph('%b %d, %Y %I:%M %p') if message.created_at else 'recently' }}</small>
-                    </div>
-                    <p class="profile-notification-preview">{{ message.message }}</p>
-                </div>
-
-                {% if message.admin_reply %}
-                <div class="profile-notification-block profile-admin-response">
-                    <div class="profile-thread-entry-head">
-                        <h4>Rent A Car</h4>
-                        <small>{{ message.admin_replied_at|datetime_ph('%b %d, %Y %I:%M %p') if message.admin_replied_at else 'recently' }}</small>
-                    </div>
-                    <p class="profile-notification-preview">{{ message.admin_reply }}</p>
-                </div>
-                {% endif %}
-                {% endfor %}
-
-                {% if not thread.root.is_user_archived %}
-                <div class="profile-notification-actions">
-                    <button type="button" class="focus-dashboard-btn profile-inline-reply-toggle" data-toggle-reply data-target="reply-box-{{ thread.thread_id }}">
-                        <i class="fas fa-reply"></i>
-                        Reply Here
-                    </button>
-                </div>
-                <form method="post"
-                      action="{{ url_for('profile_reply_support', concern_id=thread.root.id) }}"
-                      class="profile-inline-reply-form is-hidden"
-                      id="reply-box-{{ thread.thread_id }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <label for="follow-up-{{ thread.thread_id }}">Your Follow-up Reply</label>
-                    <textarea id="follow-up-{{ thread.thread_id }}"
-                              name="follow_up_reply"
-                              rows="3"
-                              minlength="5"
-                              maxlength="2000"
-                              required
-                              placeholder="Type your follow-up message for support..."></textarea>
-                    <div class="profile-inline-reply-actions">
-                        <button type="submit" class="focus-dashboard-btn">
-                            <i class="fas fa-paper-plane"></i>
-                            Send Reply
-                        </button>
-                        <button type="button" class="profile-inline-cancel" data-cancel-reply data-target="reply-box-{{ thread.thread_id }}">
-                            Cancel
-                        </button>
-                    </div>
-                </form>
-                {% endif %}
-            </div>
         </article>
         {% endfor %}
     </section>
@@ -164,92 +101,3 @@
 </section>
 {% endblock %}
 
-{% block extra_scripts %}
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const threadLinks = document.querySelectorAll('.profile-thread-toggle[data-thread-id]');
-    const toggleButtons = document.querySelectorAll('[data-toggle-reply]');
-    const cancelButtons = document.querySelectorAll('[data-cancel-reply]');
-
-    threadLinks.forEach(function (link) {
-        link.addEventListener('click', function (event) {
-            const targetId = link.getAttribute('data-target');
-            const body = targetId ? document.getElementById(targetId) : null;
-            if (!body) {
-                return;
-            }
-
-            const isOpening = body.classList.contains('is-hidden');
-            body.classList.toggle('is-hidden');
-
-            if (!isOpening) {
-                return;
-            }
-
-            const markSeenUrl = link.getAttribute('data-mark-seen-url');
-            if (!markSeenUrl) {
-                return;
-            }
-
-            fetch(markSeenUrl, {
-                method: 'GET',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            }).then(function () {
-                const card = link.closest('.profile-notification-card');
-                if (card) {
-                    card.classList.remove('unread');
-                }
-
-                const badge = link.querySelector('.support-state-pill');
-                if (badge && badge.classList.contains('state-unread')) {
-                    badge.classList.remove('state-unread');
-                    badge.classList.add('state-read');
-                    badge.textContent = 'Read';
-                }
-            }).catch(function () {
-                // Ignore network errors for visual interaction.
-            });
-        });
-    });
-
-    toggleButtons.forEach(function (button) {
-        button.addEventListener('click', function () {
-            const targetId = button.getAttribute('data-target');
-            const form = targetId ? document.getElementById(targetId) : null;
-            if (!form) {
-                return;
-            }
-
-            form.classList.remove('is-hidden');
-            button.classList.add('is-hidden');
-
-            const textarea = form.querySelector('textarea');
-            if (textarea) {
-                textarea.focus();
-            }
-        });
-    });
-
-    cancelButtons.forEach(function (button) {
-        button.addEventListener('click', function () {
-            const targetId = button.getAttribute('data-target');
-            const form = targetId ? document.getElementById(targetId) : null;
-            if (!form) {
-                return;
-            }
-
-            form.classList.add('is-hidden');
-            form.reset();
-
-            const parentCard = form.closest('.profile-notification-card');
-            const toggleBtn = parentCard ? parentCard.querySelector('[data-toggle-reply]') : null;
-            if (toggleBtn) {
-                toggleBtn.classList.remove('is-hidden');
-            }
-        });
-    });
-});
-</script>
-{% endblock %}

@@ -206,6 +206,13 @@
     flex-wrap: wrap;
 }
 
+.admin-action-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
 .admin-primary-btn,
 .admin-secondary-btn,
 .admin-danger-btn,
@@ -290,6 +297,8 @@
 .admin-status-rejected { background: #f8d8d6; color: #9d2f2d; }
 .admin-status-completed { background: #d9e8f8; color: #215f9c; }
 .admin-status-returned { background: #e0e5ec; color: #4b5f77; }
+.admin-status-available { background: #d6f0e2; color: #1e6f42; }
+.admin-status-maintenance { background: #f8e6c8; color: #8d5b10; }
 
 .admin-empty {
     text-align: center;
@@ -341,6 +350,14 @@
         margin-left: 0;
     }
 
+    .admin-card {
+        padding: 14px;
+    }
+
+    .admin-table {
+        min-width: 680px;
+    }
+
     .admin-page .site-footer {
         display: none;
     }
@@ -359,5 +376,35 @@
     .admin-topbar-actions {
         width: 100%;
         justify-content: flex-start;
+    }
+
+    .admin-toolbar {
+        align-items: stretch;
+    }
+
+    .admin-toolbar h2 {
+        width: 100%;
+    }
+
+    .admin-action-group {
+        width: 100%;
+    }
+
+    .admin-primary-btn,
+    .admin-secondary-btn,
+    .admin-danger-btn,
+    .admin-soft-btn {
+        font-size: 0.78rem;
+        padding: 8px 10px;
+    }
+
+    .admin-table {
+        min-width: 620px;
+    }
+
+    .admin-table th,
+    .admin-table td {
+        padding: 11px 10px;
+        font-size: 0.82rem;
     }
 }

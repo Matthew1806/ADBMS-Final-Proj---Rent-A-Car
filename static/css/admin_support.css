@@ -136,6 +136,32 @@
     text-align: left;
     width: 100%;
     cursor: pointer;
+    display: block;
+    text-decoration: none;
+    color: inherit;
+}
+
+.admin-thread-toggle:hover .admin-support-head h3 {
+    color: #cc4f3d;
+}
+
+.admin-thread-preview {
+    margin-top: 8px;
+}
+
+.admin-thread-preview p {
+    margin: 0;
+    color: #4b607f;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.admin-thread-preview p span {
+    color: #2f4463;
+    font-weight: 700;
 }
 
 .admin-thread-actions {

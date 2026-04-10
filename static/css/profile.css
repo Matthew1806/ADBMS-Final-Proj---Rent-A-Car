@@ -856,6 +856,10 @@
     color: inherit;
 }
 
+.profile-thread-toggle:hover .profile-notification-top h3 {
+    color: #cc4f3d;
+}
+
 .profile-thread-body {
     padding: 12px 14px 14px;
     display: grid;

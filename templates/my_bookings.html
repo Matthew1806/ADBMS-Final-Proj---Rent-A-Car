@@ -9,39 +9,49 @@
         <p>Track every reservation with clear status, dates, and cost breakdown.</p>
     </div>
 
-    {% if total_bookings > 0 %}
     <div class="booking-metrics reveal-up delay-08">
-        <div class="metric-item"><span>Total</span><strong>{{ total_bookings }}</strong></div>
-        <div class="metric-item"><span>Pending</span><strong>{{ bookings_by_status.get('Pending', [])|length }}</strong></div>
-        <div class="metric-item"><span>Approved</span><strong>{{ bookings_by_status.get('Approved', [])|length }}</strong></div>
-        <div class="metric-item"><span>Completed</span><strong>{{ bookings_by_status.get('Completed', [])|length + bookings_by_status.get('Returned', [])|length }}</strong></div>
+        <div class="metric-item"><span>Active Total</span><strong>{{ status_counts.get('all', 0) }}</strong></div>
+        <div class="metric-item"><span>Pending</span><strong>{{ status_counts.get('pending', 0) }}</strong></div>
+        <div class="metric-item"><span>Approved</span><strong>{{ status_counts.get('approved', 0) }}</strong></div>
+        <div class="metric-item"><span>Rejected</span><strong>{{ status_counts.get('rejected', 0) }}</strong></div>
+        <div class="metric-item"><span>Completed</span><strong>{{ status_counts.get('completed', 0) }}</strong></div>
+        <div class="metric-item"><span>Archived</span><strong>{{ status_counts.get('archived', 0) }}</strong></div>
     </div>
-    {% endif %}
+
+    <div class="booking-filters reveal-up delay-16">
+        <div class="filter-row">
+            <a href="{{ url_for('my_bookings', view='active', status='all') }}" class="filter-chip {% if view_filter == 'active' and status_filter == 'all' %}is-active{% endif %}">All</a>
+            <a href="{{ url_for('my_bookings', view='active', status='pending') }}" class="filter-chip {% if view_filter == 'active' and status_filter == 'pending' %}is-active{% endif %}">Pending</a>
+            <a href="{{ url_for('my_bookings', view='active', status='approved') }}" class="filter-chip {% if view_filter == 'active' and status_filter == 'approved' %}is-active{% endif %}">Approved</a>
+            <a href="{{ url_for('my_bookings', view='active', status='rejected') }}" class="filter-chip {% if view_filter == 'active' and status_filter == 'rejected' %}is-active{% endif %}">Rejected</a>
+            <a href="{{ url_for('my_bookings', view='active', status='completed') }}" class="filter-chip {% if view_filter == 'active' and status_filter == 'completed' %}is-active{% endif %}">Completed</a>
+            <a href="{{ url_for('my_bookings', view='archived', status='all') }}" class="filter-chip {% if view_filter == 'archived' %}is-active{% endif %}">Archived</a>
+        </div>
+    </div>
 
     {% if total_bookings > 0 %}
-        {% for status, bookings in bookings_by_status.items() %}
-            {% if bookings %}
-            <div class="booking-category reveal-up delay-16">
-                <div class="category-header">
-                    <h3 class="category-title">
-                        {% if status == 'Pending' %}
-                            <i class="fas fa-clock"></i> Pending Bookings
-                        {% elif status == 'Approved' %}
-                            <i class="fas fa-check-circle"></i> Approved Bookings
-                        {% elif status == 'Rejected' %}
-                            <i class="fas fa-times-circle"></i> Rejected Bookings
-                        {% elif status == 'Returned' %}
-                            <i class="fas fa-undo"></i> Returned Bookings
-                        {% elif status == 'Completed' %}
-                            <i class="fas fa-check-double"></i> Completed Bookings
-                        {% else %}
-                            <i class="fas fa-list"></i> {{ status }} Bookings
-                        {% endif %}
-                        <span class="category-count">({{ bookings|length }})</span>
-                    </h3>
-                </div>
-                <div class="bookings-grid">
-                    {% for booking in bookings %}
+        <div class="booking-category reveal-up delay-16">
+            <div class="category-header">
+                <h3 class="category-title">
+                    <i class="fas fa-list"></i>
+                    {% if view_filter == 'archived' %}
+                        Archived Bookings
+                    {% elif status_filter == 'pending' %}
+                        Pending Bookings
+                    {% elif status_filter == 'approved' %}
+                        Approved Bookings
+                    {% elif status_filter == 'rejected' %}
+                        Rejected Bookings
+                    {% elif status_filter == 'completed' %}
+                        Completed Bookings
+                    {% else %}
+                        All Active Bookings
+                    {% endif %}
+                    <span class="category-count">({{ total_bookings }})</span>
+                </h3>
+            </div>
+            <div class="bookings-grid">
+                {% for booking in bookings %}
                     <article class="booking-card">
                         <div class="booking-card-header">
                             <div class="booking-title">
@@ -138,7 +148,16 @@
 
                         <div class="booking-card-footer">
                             <div class="booking-actions">
-                                {% if booking.status == 'Pending' %}
+                                {% if view_filter == 'archived' %}
+                                    <form method="POST" action="{{ url_for('archive_booking', booking_id=booking.id) }}" class="delete-form">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <input type="hidden" name="action" value="unarchive"/>
+                                        <button type="submit" class="mybookings-unarchive-btn">
+                                            <i class="fas fa-box-open"></i> Unarchive
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    {% if booking.status == 'Pending' %}
                                     <a href="{{ url_for('edit_booking', booking_id=booking.id) }}" class="mybookings-edit-btn">
                                         <i class="fas fa-edit"></i> Edit
                                     </a>
@@ -148,7 +167,7 @@
                                             <i class="fas fa-ban"></i> Cancel
                                         </button>
                                     </form>
-                                {% elif booking.status == 'Approved' %}
+                                    {% elif booking.status == 'Approved' %}
                                     {% if booking.payment_status != 'Paid' %}
                                         {% if booking.payment_method in ['GCash', 'Card'] %}
                                             <a href="{{ url_for('confirmation', booking_id=booking.id) }}" class="mybookings-pay-btn">
@@ -168,30 +187,45 @@
                                             <i class="fas fa-check-circle"></i> Paid
                                         </span>
                                     {% endif %}
-                                {% endif %}
-                                {% if booking.status == 'Returned' %}
+                                    {% endif %}
+                                    {% if booking.status == 'Returned' %}
                                     <a href="{{ url_for('review', booking_id=booking.id) }}" class="mybookings-rate-btn">
                                         <i class="fas fa-star"></i> Rate
                                     </a>
+                                    {% endif %}
+
+                                    <form method="POST" action="{{ url_for('archive_booking', booking_id=booking.id) }}" class="delete-form" onsubmit="return confirm('Archive this booking? You can still restore it later.')">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <input type="hidden" name="action" value="archive"/>
+                                        <button type="submit" class="mybookings-archive-btn">
+                                            <i class="fas fa-box"></i> Archive
+                                        </button>
+                                    </form>
                                 {% endif %}
                             </div>
                         </div>
                     </article>
-                    {% endfor %}
-                </div>
+                {% endfor %}
             </div>
-            {% endif %}
-        {% endfor %}
+        </div>
     {% else %}
         <div class="no-bookings reveal-up">
             <div class="no-bookings-icon">
                 <i class="fas fa-calendar-times"></i>
             </div>
-            <h3>No Bookings Yet</h3>
-            <p>You have no reservations yet. Browse the fleet and create your first booking in minutes.</p>
+            {% if view_filter == 'archived' %}
+            <h3>No Archived Bookings</h3>
+            <p>You have not archived any bookings yet.</p>
+            <a href="{{ url_for('my_bookings') }}" class="btn-mybookings-primary">
+                <i class="fas fa-list"></i> View Active Bookings
+            </a>
+            {% else %}
+            <h3>No Bookings Found</h3>
+            <p>No bookings match your current filter. Try another filter or create a new booking.</p>
             <a href="{{ url_for('cars_page') }}" class="btn-mybookings-primary">
                 <i class="fas fa-car"></i> Browse Cars
             </a>
+            {% endif %}
         </div>
     {% endif %}
 </section>

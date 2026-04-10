@@ -46,11 +46,7 @@
         {% for thread in threads %}
         <article class="admin-support-item {% if status_filter == 'archived' %}is-archived{% elif thread.has_unread_customer_message %}is-pending{% else %}is-replied{% endif %}">
             <div class="admin-thread-header">
-                <button type="button"
-                    class="admin-thread-toggle"
-                    data-toggle-thread
-                    data-target="admin-thread-{{ thread.thread_id }}"
-                    data-mark-read-url="{{ url_for('admin_mark_support_thread_read', concern_id=thread.root.id) }}">
+                <a href="{{ url_for('admin_support_thread', thread_id=thread.thread_id, status=status_filter) }}" class="admin-thread-toggle" aria-label="Open support thread {{ thread.display_subject }}">
                     <div class="admin-support-head">
                         <div>
                             <h3>{{ thread.display_subject }}</h3>
@@ -65,10 +61,16 @@
                         {% elif thread.has_unread_customer_message %}
                         <span class="admin-status-badge admin-status-pending">Unread</span>
                         {% else %}
-                        <span class="admin-status-badge admin-status-approved">Replied</span>
+                        <span class="admin-status-badge admin-status-approved">Read</span>
                         {% endif %}
                     </div>
-                </button>
+                    <div class="admin-thread-preview">
+                        <p>
+                            <span>{{ 'Rent A Car:' if thread.last_reply_actor == 'Admin' else 'Customer:' }}</span>
+                            {{ thread.last_reply_preview if thread.last_reply_preview else 'No message preview available.' }}
+                        </p>
+                    </div>
+                </a>
 
                 <div class="admin-support-actions admin-thread-actions">
                     {% if status_filter == 'archived' %}
@@ -98,41 +100,6 @@
                     </form>
                 </div>
             </div>
-
-            <div class="admin-thread-body is-hidden" id="admin-thread-{{ thread.thread_id }}">
-                {% for message in thread.messages %}
-                <div class="admin-support-message">
-                    <h4><i class="fas fa-comment-dots"></i> {{ message.name or 'Customer' }}</h4>
-                    <small class="admin-thread-date">{{ message.created_at|datetime_ph('%b %d, %Y %I:%M %p') if message.created_at else 'Unknown date' }}</small>
-                    <p>{{ message.message }}</p>
-                </div>
-
-                {% if message.admin_reply %}
-                <div class="admin-support-reply-view">
-                    <h4><i class="fas fa-reply"></i> Rent A Car Reply</h4>
-                    <small class="admin-thread-date">{{ message.admin_replied_at|datetime_ph('%b %d, %Y %I:%M %p') if message.admin_replied_at else 'Unknown date' }}</small>
-                    <p>{{ message.admin_reply }}</p>
-                </div>
-                {% endif %}
-                {% endfor %}
-
-                {% if status_filter != 'archived' and thread.pending_target %}
-                <form method="post" action="{{ url_for('admin_reply_support', concern_id=thread.pending_target.id) }}" class="admin-support-reply-form">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <label for="reply-{{ thread.thread_id }}">Rent A Car Reply</label>
-                    <textarea id="reply-{{ thread.thread_id }}" name="reply" rows="4" minlength="5" maxlength="2000" required data-reply-input placeholder="Write a clear, professional reply for this customer..."></textarea>
-                    <div class="admin-support-reply-footer">
-                        <span class="admin-reply-char-count" data-char-count>0 / 2000</span>
-                        <div class="admin-support-actions">
-                            <button type="submit" class="admin-primary-btn">
-                                <i class="fas fa-paper-plane"></i>
-                                Send Reply
-                            </button>
-                        </div>
-                    </div>
-                </form>
-                {% endif %}
-            </div>
         </article>
         {% endfor %}
     </div>
@@ -146,89 +113,3 @@
 </section>
 {% endblock %}
 
-{% block extra_scripts %}
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const threadButtons = document.querySelectorAll('[data-toggle-thread]');
-    const textareas = document.querySelectorAll('[data-reply-input]');
-
-    threadButtons.forEach(function (button) {
-        button.addEventListener('click', function () {
-            const targetId = button.getAttribute('data-target');
-            const body = targetId ? document.getElementById(targetId) : null;
-            if (!body) {
-                return;
-            }
-
-            const isOpening = body.classList.contains('is-hidden');
-            body.classList.toggle('is-hidden');
-
-            if (!isOpening) {
-                return;
-            }
-
-            const markReadUrl = button.getAttribute('data-mark-read-url');
-            if (!markReadUrl) {
-                return;
-            }
-
-            fetch(markReadUrl, {
-                method: 'GET',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            }).then(function (response) {
-                return response.json().catch(function () {
-                    return {};
-                });
-            }).then(function (result) {
-                const card = button.closest('.admin-support-item');
-                if (!card) {
-                    return;
-                }
-
-                card.classList.remove('is-pending');
-                card.classList.add('is-replied');
-
-                const badge = card.querySelector('.admin-status-badge');
-                if (badge) {
-                    badge.textContent = 'Read';
-                    badge.classList.remove('admin-status-pending');
-                    badge.classList.add('admin-status-approved');
-                }
-
-                const navBadge = document.getElementById('admin-support-nav-badge');
-                if (navBadge && typeof result.remaining_unread_count === 'number') {
-                    if (result.remaining_unread_count > 0) {
-                        navBadge.hidden = false;
-                        navBadge.textContent = String(result.remaining_unread_count);
-                    } else {
-                        navBadge.hidden = true;
-                        navBadge.textContent = '0';
-                    }
-                }
-            }).catch(function () {
-                // Keep toggle interaction even if mark-read fails.
-            });
-        });
-    });
-
-    textareas.forEach(function (textarea) {
-        const form = textarea.closest('form');
-        const countEl = form ? form.querySelector('[data-char-count]') : null;
-        const max = parseInt(textarea.getAttribute('maxlength') || '2000', 10);
-
-        function refreshComposer() {
-            const currentLength = textarea.value.length;
-            if (countEl) {
-                countEl.textContent = currentLength + ' / ' + max;
-                countEl.classList.toggle('warning', currentLength > Math.floor(max * 0.9));
-            }
-        }
-
-        refreshComposer();
-        textarea.addEventListener('input', refreshComposer);
-    });
-});
-</script>
-{% endblock %}

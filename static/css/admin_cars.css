@@ -3,3 +3,37 @@
    ======================================== */
 
 /* Uses shared admin_common.css table and button styles */
+
+.admin-car-status-wrap {
+   display: grid;
+   gap: 8px;
+}
+
+.admin-car-status-form {
+   display: flex;
+   align-items: center;
+   gap: 8px;
+   flex-wrap: wrap;
+   margin: 0;
+}
+
+.admin-car-status-select {
+   min-width: 128px;
+   border: 1px solid #ccd9ec;
+   border-radius: 8px;
+   padding: 6px 8px;
+   font-size: 0.8rem;
+   color: #2d4465;
+   background: #f7fbff;
+}
+
+.admin-car-actions {
+   display: flex;
+   align-items: center;
+   gap: 8px;
+   flex-wrap: wrap;
+}
+
+.admin-car-remove-form {
+   margin: 0;
+}

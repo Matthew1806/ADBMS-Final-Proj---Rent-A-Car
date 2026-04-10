@@ -165,9 +165,9 @@
                     {{ form.payment_method.label }}
                     <select id="payment_method" name="payment_method" class="book-input" title="Payment Method" required>
                         <option value="">Select payment method</option>
-                        <option value="Cash">Cash on Pickup</option>
-                        <option value="GCash">GCash</option>
-                        <option value="Card">Credit/Debit Card</option>
+                        {% for method in payment_methods %}
+                        <option value="{{ method }}" {% if form.payment_method.data == method %}selected{% endif %}>{{ method }}</option>
+                        {% endfor %}
                     </select>
                     {% if form.payment_method.errors %}
                         <div class="error" role="alert">{{ form.payment_method.errors[0] }}</div>

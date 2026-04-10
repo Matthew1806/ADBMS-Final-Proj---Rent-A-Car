@@ -20,7 +20,7 @@
                     <th>Car Name</th>
                     <th>Type</th>
                     <th>Price / Day</th>
-                    <th>Availability</th>
+                    <th>Car Status</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -32,14 +32,28 @@
                     <td>{{ car.transmission }} / {{ car.fuel }}</td>
                     <td>PHP {{ car.price }}</td>
                     <td>
-                        <span class="admin-status-badge admin-status-{{ (car.availability or 'available')|lower }}">{{ car.availability or 'Available' }}</span>
+                        {% set availability_value = car.availability or 'Available' %}
+                        <div class="admin-car-status-wrap">
+                            <span class="admin-status-badge admin-status-{{ availability_value|lower|replace(' ', '-') }}">{{ availability_value }}</span>
+                            <form method="POST" action="{{ url_for('admin_update_car_availability', car_id=car.id) }}" class="admin-car-status-form">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <select name="availability" class="admin-car-status-select" aria-label="Update status for {{ car.name }}">
+                                    <option value="Available" {% if availability_value == 'Available' %}selected{% endif %}>Available</option>
+                                    <option value="Rented" {% if availability_value == 'Rented' %}selected{% endif %}>Rented</option>
+                                    <option value="Maintenance" {% if availability_value in ['Maintenance', 'Under Maintenance'] %}selected{% endif %}>Maintenance</option>
+                                </select>
+                                <button type="submit" class="admin-soft-btn">Update</button>
+                            </form>
+                        </div>
                     </td>
                     <td>
-                        <a href="{{ url_for('admin_edit_car', car_id=car.id) }}" class="admin-secondary-btn">Edit</a>
-                        <form method="POST" action="{{ url_for('admin_delete_car', car_id=car.id) }}" style="display:inline;" onsubmit="return confirm('Delete this vehicle and related records? This action cannot be undone.');">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="admin-danger-btn">Remove</button>
-                        </form>
+                        <div class="admin-car-actions">
+                            <a href="{{ url_for('admin_edit_car', car_id=car.id) }}" class="admin-secondary-btn">Edit</a>
+                            <form method="POST" action="{{ url_for('admin_delete_car', car_id=car.id) }}" class="admin-car-remove-form" onsubmit="return confirm('Delete this vehicle and related records? This action cannot be undone.');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="admin-danger-btn">Remove</button>
+                            </form>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}

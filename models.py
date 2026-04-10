@@ -60,6 +60,8 @@ class Booking(db.Model):
     license_file = db.Column(db.String(200))  # Uploaded license filename
     notes = db.Column(db.Text)  # Special requests
     status = db.Column(db.String(20), default='Pending')  # Pending/Approved/Rejected/Completed
+    is_user_archived = db.Column(db.Boolean, default=False, nullable=False)  # Hidden from active list when archived by user
+    user_archived_at = db.Column(db.DateTime, nullable=True)  # When user archived this booking
     payment_method = db.Column(db.String(50))  # Payment method selected (GCash, Cash, Card)
     payment_status = db.Column(db.String(20), default='Unpaid')  # Unpaid/Paid
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)  # When booking was made
@@ -78,6 +80,7 @@ class Review(db.Model):
     booking_id = db.Column(db.Integer, db.ForeignKey('booking.id'), nullable=False)  # Which booking this is for
     rating = db.Column(db.Integer, nullable=False)  # Star rating (1-5)
     comment = db.Column(db.Text)  # Written review
+    is_anonymous = db.Column(db.Boolean, default=False, nullable=False)  # Hide reviewer identity in public views
     created_at = db.Column(db.DateTime, default=datetime.utcnow)  # When review was posted
 
 

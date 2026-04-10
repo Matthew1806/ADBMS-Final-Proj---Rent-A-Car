@@ -175,6 +175,14 @@
     box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
 }
 
+.details-proceedrent-button.is-disabled {
+    background: #c7cfdb;
+    color: #6d7e95;
+    box-shadow: none;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 .details-backtocars-button {
     background: #f0f2ff;
     color: #1f3258;

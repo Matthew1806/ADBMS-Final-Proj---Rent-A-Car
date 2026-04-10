@@ -609,6 +609,13 @@
     font-weight: 700;
 }
 
+.featured-car-action.is-disabled {
+    background: #c7cfdb;
+    color: #6d7e95;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 .process-number {
     width: 36px;
     height: 36px;

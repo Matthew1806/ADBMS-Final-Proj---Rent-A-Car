@@ -54,6 +54,40 @@
     margin-top: 20px;
 }
 
+.booking-filters {
+    margin-bottom: 14px;
+}
+
+.filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+    border-radius: 999px;
+    text-decoration: none;
+    border: 1px solid #d3dfef;
+    background: #f4f8ff;
+    color: #28466c;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.filter-chip:hover {
+    background: #eaf2ff;
+}
+
+.filter-chip.is-active {
+    color: #ffffff;
+    border-color: #cc4f3d;
+    background: linear-gradient(120deg, #cc4f3d, #df7a61);
+}
+
 .category-header {
     margin-bottom: 10px;
 }
@@ -235,7 +269,9 @@
 .mybookings-edit-btn,
 .mybookings-delete-btn,
 .mybookings-pay-btn,
-.mybookings-rate-btn {
+.mybookings-rate-btn,
+.mybookings-archive-btn,
+.mybookings-unarchive-btn {
     border: 0;
     border-radius: 9px;
     padding: 9px 11px;
@@ -266,6 +302,16 @@
 .mybookings-rate-btn {
     background: linear-gradient(120deg, #f0be3e, #f5d268);
     color: #473400;
+}
+
+.mybookings-archive-btn {
+    background: #e8edf6;
+    color: #263d60;
+}
+
+.mybookings-unarchive-btn {
+    background: #dff4e9;
+    color: #1e6d45;
 }
 
 .mybookings-paid-badge {

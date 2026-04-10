@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block title %}Support Conversation - Rent A Car{% endblock %}
+
+{% block content %}
+<section class="profile-notifications-shell">
+    <header class="profile-notifications-header">
+        <div>
+            <p class="profile-support-kicker">Customer Support</p>
+            <h1>{{ thread.display_subject }}</h1>
+            <p>Read your full conversation with admin and send follow-up replies in one place.</p>
+        </div>
+        <a href="{{ url_for('profile_notifications', status=status_filter) }}" class="focus-dashboard-btn">
+            <i class="fas fa-arrow-left"></i>
+            Back to Notification Center
+        </a>
+    </header>
+
+    <article class="profile-notification-card profile-thread-item {% if thread.has_unread_admin_reply %}unread{% endif %}">
+        <div class="profile-thread-body" id="thread-body-{{ thread.thread_id }}">
+            {% for message in thread.messages %}
+            <div class="profile-notification-block">
+                <div class="profile-thread-entry-head">
+                    <h4>You</h4>
+                    <small>{{ message.created_at|datetime_ph('%b %d, %Y %I:%M %p') if message.created_at else 'recently' }}</small>
+                </div>
+                <p class="profile-notification-preview">{{ message.message }}</p>
+            </div>
+
+            {% if message.admin_reply %}
+            <div class="profile-notification-block profile-admin-response">
+                <div class="profile-thread-entry-head">
+                    <h4>Rent A Car</h4>
+                    <small>{{ message.admin_replied_at|datetime_ph('%b %d, %Y %I:%M %p') if message.admin_replied_at else 'recently' }}</small>
+                </div>
+                <p class="profile-notification-preview">{{ message.admin_reply }}</p>
+            </div>
+            {% endif %}
+            {% endfor %}
+
+            {% if not thread.root.is_user_archived %}
+            <form method="post"
+                  action="{{ url_for('profile_reply_support', concern_id=thread.root.id) }}"
+                  class="profile-inline-reply-form"
+                  id="reply-box-{{ thread.thread_id }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <label for="follow-up-{{ thread.thread_id }}">Your Follow-up Reply</label>
+                <textarea id="follow-up-{{ thread.thread_id }}"
+                          name="follow_up_reply"
+                          rows="4"
+                          minlength="5"
+                          maxlength="2000"
+                          required
+                          placeholder="Type your follow-up message for support..."></textarea>
+                <div class="profile-inline-reply-actions">
+                    <button type="submit" class="focus-dashboard-btn">
+                        <i class="fas fa-paper-plane"></i>
+                        Send Reply
+                    </button>
+                </div>
+            </form>
+            {% endif %}
+        </div>
+    </article>
+</section>
+{% endblock %}

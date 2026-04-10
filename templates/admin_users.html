@@ -2,7 +2,7 @@
 
 {% block title %}Customers - Rent A Car{% endblock %}
 {% block admin_page_title %}Customers{% endblock %}
-{% block admin_page_subtitle %}View customer details and booking activity in one simple table.{% endblock %}
+{% block admin_page_subtitle %}View customer details and booking activity in one simple table (customers only).{% endblock %}
 
 {% block admin_content %}
 <article class="admin-card">
@@ -11,30 +11,22 @@
         <a href="{{ url_for('admin_add_user') }}" class="admin-primary-btn"><i class="fas fa-user-plus"></i> Add User</a>
     </div>
 
-    {% if all_users %}
+    {% if customer_users %}
     <div class="admin-table-wrap">
         <table class="admin-table">
             <thead>
                 <tr>
                     <th>Customer Name</th>
                     <th>Email</th>
-                    <th>Role</th>
                     <th>Bookings</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
-                {% for user in all_users %}
+                {% for user in customer_users %}
                 <tr>
                     <td>{{ user.name }}</td>
                     <td>{{ user.email }}</td>
-                    <td>
-                        {% if user.is_admin %}
-                            <span class="admin-status-badge admin-status-approved">Admin</span>
-                        {% else %}
-                            <span class="admin-status-badge admin-status-pending">Customer</span>
-                        {% endif %}
-                    </td>
                     <td>{{ user.bookings|length }}</td>
                     <td>
                         <a href="{{ url_for('admin_edit_user', user_id=user.id) }}" class="admin-secondary-btn">View / Edit</a>

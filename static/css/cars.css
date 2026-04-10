@@ -355,6 +355,14 @@
     transform: translateY(-1px);
 }
 
+.cars-card-booknow-button.is-disabled {
+    background: #c7ceda;
+    color: #6f7f96;
+    box-shadow: none;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 .cars-empty-state {
     text-align: center;
     padding: 60px 20px;

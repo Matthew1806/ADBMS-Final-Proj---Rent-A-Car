@@ -9,11 +9,11 @@
     <div class="admin-toolbar">
         <h2>Booking Records</h2>
         <div class="admin-action-group">
-            <a href="{{ url_for('admin_bookings') }}" class="admin-secondary-btn">All</a>
-            <a href="{{ url_for('admin_bookings', status='Pending') }}" class="admin-secondary-btn">Pending</a>
-            <a href="{{ url_for('admin_bookings', status='Approved') }}" class="admin-secondary-btn">Approved</a>
-            <a href="{{ url_for('admin_bookings', status='Rejected') }}" class="admin-secondary-btn">Rejected</a>
-            <a href="{{ url_for('admin_bookings', status='Completed') }}" class="admin-secondary-btn">Completed</a>
+            <a href="{{ url_for('admin_bookings') }}" class="admin-secondary-btn admin-bookings-filter-btn {% if not status_filter %}is-active{% endif %}">All</a>
+            <a href="{{ url_for('admin_bookings', status='Pending') }}" class="admin-secondary-btn admin-bookings-filter-btn {% if status_filter == 'Pending' %}is-active{% endif %}">Pending</a>
+            <a href="{{ url_for('admin_bookings', status='Approved') }}" class="admin-secondary-btn admin-bookings-filter-btn {% if status_filter == 'Approved' %}is-active{% endif %}">Approved</a>
+            <a href="{{ url_for('admin_bookings', status='Rejected') }}" class="admin-secondary-btn admin-bookings-filter-btn {% if status_filter == 'Rejected' %}is-active{% endif %}">Rejected</a>
+            <a href="{{ url_for('admin_bookings', status='Completed') }}" class="admin-secondary-btn admin-bookings-filter-btn {% if status_filter == 'Completed' %}is-active{% endif %}">Completed</a>
         </div>
     </div>
 
@@ -39,11 +39,13 @@
                     <td>{{ booking.return_date.strftime('%Y-%m-%d') }}</td>
                     <td><span class="admin-status-badge admin-status-{{ booking.status.lower() }}">{{ booking.status }}</span></td>
                     <td>
-                        <a href="{{ url_for('admin_booking_details', booking_id=booking.id) }}" class="admin-secondary-btn">View / Update</a>
-                        <form method="POST" action="{{ url_for('admin_delete_booking', booking_id=booking.id) }}" style="display:inline;" onsubmit="return confirm('Cancel and delete this booking record?');">
+                        <div class="admin-bookings-actions">
+                            <a href="{{ url_for('admin_booking_details', booking_id=booking.id) }}" class="admin-secondary-btn">View / Update</a>
+                            <form method="POST" action="{{ url_for('admin_delete_booking', booking_id=booking.id) }}" class="admin-bookings-cancel-form" onsubmit="return confirm('Cancel and delete this booking record?');">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                            <button type="submit" class="admin-danger-btn">Cancel</button>
-                        </form>
+                                <button type="submit" class="admin-danger-btn">Cancel</button>
+                            </form>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}

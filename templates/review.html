@@ -4,46 +4,73 @@
 
 {% block content %}
 <section class="review-page-shell">
-    <h2 class="review-page-title">Review Your Booking</h2>
-    <p class="review-page-subtitle">Share your feedback and rate your experience</p>
+    <header class="review-page-header">
+        <h2 class="review-page-title">Review Your Booking</h2>
+        <p class="review-page-subtitle">Share your feedback and rate your rental experience.</p>
+    </header>
     
     <div class="review-page-card">
-        <div class="review-booking-details">
-            <h3 class="review-booking-title">Booking Details</h3>
-            <p class="review-booking-line"><strong>Car:</strong> {{ car.name }}</p>
-            <p class="review-booking-line"><strong>Pickup Date:</strong> {{ booking.pickup_date.strftime('%B %d, %Y') }}</p>
-            <p class="review-booking-line"><strong>Return Date:</strong> {{ booking.return_date.strftime('%B %d, %Y') }}</p>
-        </div>
+        <aside class="review-vehicle-panel">
+            <div class="review-vehicle-image-wrap">
+                {% if car and car.image %}
+                    <img src="{{ url_for('static', filename=car.image) }}" alt="{{ car.name }}" class="review-vehicle-image">
+                {% else %}
+                    <img src="{{ url_for('static', filename='images/cars/city.jpg') }}" alt="Default car" class="review-vehicle-image">
+                {% endif %}
+            </div>
 
-        <form method="POST">
-            {{ form.hidden_tag() }}
-            <div class="review-field">
-                {{ form.rating.label(class="review-label") }}
-                {{ form.rating(class="review-select") }}
-                {% if form.rating.errors %}
-                    <div class="review-error">
-                        {% for error in form.rating.errors %}
-                            <small>{{ error }}</small>
-                        {% endfor %}
-                    </div>
-                {% endif %}
+            <div class="review-booking-details">
+                <h3 class="review-booking-title">{{ car.name if car else 'Booked Car' }}</h3>
+                <div class="review-booking-meta">
+                    <p class="review-booking-line"><strong>Pickup:</strong> {{ booking.pickup_date.strftime('%B %d, %Y') }}</p>
+                    <p class="review-booking-line"><strong>Return:</strong> {{ booking.return_date.strftime('%B %d, %Y') }}</p>
+                </div>
             </div>
-            <div class="review-field">
-                {{ form.comment.label(class="review-label") }}
-                {{ form.comment(class="review-textarea", rows=4) }}
-                {% if form.comment.errors %}
-                    <div class="review-error">
-                        {% for error in form.comment.errors %}
-                            <small>{{ error }}</small>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-            </div>
-            <div class="review-actions">
-                <a href="{{ url_for('my_bookings') }}" class="review-back-btn">Back to My Bookings</a>
-                {{ form.submit(class="review-submit-btn") }}
-            </div>
-        </form>
+        </aside>
+
+        <div class="review-form-panel">
+            <h3 class="review-form-title">Your Feedback</h3>
+            <p class="review-form-subtitle">Your review helps future customers decide with confidence.</p>
+
+            <form method="POST">
+                {{ form.hidden_tag() }}
+                <div class="review-field">
+                    {{ form.rating.label(class="review-label") }}
+                    {{ form.rating(class="review-select") }}
+                    {% if form.rating.errors %}
+                        <div class="review-error">
+                            {% for error in form.rating.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="review-field">
+                    {{ form.comment.label(class="review-label") }}
+                    {{ form.comment(class="review-textarea", rows=5, placeholder="Tell us about your booking experience.") }}
+                    {% if form.comment.errors %}
+                        <div class="review-error">
+                            {% for error in form.comment.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="review-anonymous-toggle">
+                    <label class="review-check-label">
+                        {{ form.is_anonymous(class="review-checkbox") }}
+                        <span>Share this feedback anonymously</span>
+                    </label>
+                </div>
+
+                <div class="review-actions">
+                    <a href="{{ url_for('my_bookings') }}" class="review-back-btn">Back to My Bookings</a>
+                    {{ form.submit(class="review-submit-btn") }}
+                </div>
+            </form>
+        </div>
     </div>
 </section>
 {% endblock %}

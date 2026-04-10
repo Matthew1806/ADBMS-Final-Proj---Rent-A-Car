@@ -3,3 +3,47 @@
    ======================================== */
 
 /* Uses shared admin_common.css table and status badge styles */
+
+.admin-bookings-actions {
+   display: flex;
+   align-items: center;
+   gap: 8px;
+   flex-wrap: wrap;
+   min-width: 210px;
+}
+
+.admin-bookings-filter-btn.is-active {
+   background: linear-gradient(120deg, #cb4b3b, #de7a5f);
+   color: #ffffff;
+   border-color: #c25747;
+   box-shadow: 0 6px 14px rgba(191, 74, 57, 0.25);
+}
+
+.admin-bookings-cancel-form {
+   margin: 0;
+}
+
+@media (max-width: 900px) {
+   .admin-bookings-actions {
+      min-width: 0;
+   }
+
+   .admin-action-group {
+      width: 100%;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+   }
+}
+
+@media (max-width: 640px) {
+   .admin-action-group {
+      overflow-x: auto;
+      flex-wrap: nowrap;
+      padding-bottom: 2px;
+   }
+
+   .admin-bookings-filter-btn {
+      white-space: nowrap;
+   }
+}

@@ -8,7 +8,7 @@ import os
 from datetime import datetime, timedelta, date, timezone
 from collections import Counter
 from sqlalchemy import inspect, text, or_, func
-from models import db, Car, User, Booking, Review, Payment, SupportConcern
+from models import db, Car, User, Booking, Review, Payment, PaymentMethod, SupportConcern
 from forms import RegistrationForm, LoginForm, BookingForm, ReviewForm, CarForm, UserForm
 from dotenv import load_dotenv
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
@@ -63,6 +63,16 @@ login_manager.login_view = 'login'
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(User, int(user_id))
+
+
+def get_payment_method_names():
+    """Return payment methods from DB so UI and validation stay in sync."""
+    methods = [
+        row.method_name.strip()
+        for row in PaymentMethod.query.order_by(PaymentMethod.id.asc()).all()
+        if row.method_name and row.method_name.strip()
+    ]
+    return methods if methods else ['Cash', 'GCash', 'Card']
 
 def get_email_serializer():
     """Serializer used to sign and validate email verification tokens."""
@@ -267,6 +277,25 @@ def is_valid_status(status):
     """Check if booking status is valid."""
     return status in ['Pending', 'Approved', 'Rejected', 'Completed', 'Returned']
 
+
+def normalize_car_availability(value):
+    """Normalize car availability text for consistent checks."""
+    raw = (value or 'Available').strip().lower().replace('-', ' ').replace('_', ' ')
+    if raw in {'available'}:
+        return 'Available'
+    if raw in {'rented'}:
+        return 'Rented'
+    if raw in {'maintenance', 'under maintenance'}:
+        return 'Maintenance'
+    return 'Available'
+
+
+def is_car_bookable(car):
+    """Only cars marked Available are bookable."""
+    if not car:
+        return False
+    return normalize_car_availability(getattr(car, 'availability', 'Available')) == 'Available'
+
 def get_car_stats(car_id):
     """Get average rating and review count for a car."""
     reviews = Review.query.filter_by(car_id=car_id).all()
@@ -366,6 +395,33 @@ def ensure_booking_pickup_area_column():
         db.session.commit()
 
 
+def ensure_booking_user_archive_columns():
+    """Add booking archive columns for older databases."""
+    inspector = inspect(db.engine)
+    if not inspector.has_table('booking'):
+        return
+
+    column_names = {column['name'] for column in inspector.get_columns('booking')}
+    if 'is_user_archived' not in column_names:
+        db.session.execute(text("ALTER TABLE booking ADD COLUMN is_user_archived TINYINT(1) NOT NULL DEFAULT 0 AFTER status"))
+        db.session.commit()
+    if 'user_archived_at' not in column_names:
+        db.session.execute(text("ALTER TABLE booking ADD COLUMN user_archived_at DATETIME NULL AFTER is_user_archived"))
+        db.session.commit()
+
+
+def ensure_review_anonymous_column():
+    """Add review.is_anonymous column for older databases."""
+    inspector = inspect(db.engine)
+    if not inspector.has_table('review'):
+        return
+
+    column_names = {column['name'] for column in inspector.get_columns('review')}
+    if 'is_anonymous' not in column_names:
+        db.session.execute(text("ALTER TABLE review ADD COLUMN is_anonymous TINYINT(1) NOT NULL DEFAULT 0 AFTER comment"))
+        db.session.commit()
+
+
 def ensure_support_concerns_table():
     """Create support_concern table if missing for contact support tracking."""
     inspector = inspect(db.engine)
@@ -453,6 +509,8 @@ with app.app_context():
     ensure_user_otp_columns()
     ensure_user_last_login_column()
     ensure_booking_pickup_area_column()
+    ensure_booking_user_archive_columns()
+    ensure_review_anonymous_column()
     ensure_support_concerns_table()
     ensure_support_concern_archive_columns()
     ensure_support_concern_user_columns()
@@ -471,13 +529,14 @@ def home():
         car.review_count = review_count
 
     latest_reviews = Review.query.order_by(Review.created_at.desc()).limit(3).all()
-    quick_action_cars = Car.query.order_by(Car.name.asc()).all()
+    quick_action_cars = Car.query.filter(func.lower(Car.availability) == 'available').order_by(Car.name.asc()).all()
     testimonial_cards = []
     for review in latest_reviews:
         user = db.session.get(User, review.user_id)
         car = db.session.get(Car, review.car_id)
+        is_anonymous = bool(getattr(review, 'is_anonymous', False))
         testimonial_cards.append({
-            'author': user.name if user else 'Verified Customer',
+            'author': 'Anonymous Reviewer' if is_anonymous else (user.name if user else 'Verified Customer'),
             'car_name': car.name if car else 'Rental Vehicle',
             'rating': review.rating,
             'comment': review.comment,
@@ -530,7 +589,10 @@ def car_reviews(car_id):
         author = None
         try:
             user = db.session.get(User, r.user_id)
-            author = user.name if user else 'Anonymous'
+            if bool(getattr(r, 'is_anonymous', False)):
+                author = 'Anonymous Reviewer'
+            else:
+                author = user.name if user else 'Anonymous'
         except Exception:
             author = 'Anonymous'
         
@@ -651,7 +713,10 @@ def about_contact():
 @app.route('/api/car/<int:car_id>/booked')
 def api_car_booked(car_id):
     """Return a JSON list of booked ranges for a given car."""
-    Car.query.get_or_404(car_id)
+    car = Car.query.get_or_404(car_id)
+
+    if not is_car_bookable(car):
+        return jsonify({'booked_ranges': [], 'is_bookable': False, 'availability': normalize_car_availability(car.availability)})
     
     # Only show Approved, Returned, and Completed bookings as blocked
     bookings = Booking.query.filter(
@@ -683,12 +748,17 @@ def api_car_booked(car_id):
         
         ranges.append({'from': start_str, 'to': end_str})
     
-    return jsonify({'booked_ranges': ranges})
+    return jsonify({'booked_ranges': ranges, 'is_bookable': True, 'availability': normalize_car_availability(car.availability)})
 
 @app.route('/api/booked-dates/<int:car_id>')
 @login_required
 def get_booked_dates(car_id):
     """Get booked dates for a specific car."""
+    car = Car.query.get_or_404(car_id)
+
+    if not is_car_bookable(car):
+        return jsonify({'booked_dates': [], 'is_bookable': False, 'availability': normalize_car_availability(car.availability)})
+
     # Only approved, returned, and completed bookings block dates
     bookings = Booking.query.filter(
         Booking.car_id == car_id,
@@ -702,7 +772,7 @@ def get_booked_dates(car_id):
             booked_dates.append(current_date.isoformat())
             current_date = current_date + timedelta(days=1)
     
-    return jsonify({'booked_dates': booked_dates})
+    return jsonify({'booked_dates': booked_dates, 'is_bookable': True, 'availability': normalize_car_availability(car.availability)})
 
 @app.route('/check-booking-conflict', methods=['POST'])
 @login_required
@@ -714,6 +784,17 @@ def check_booking_conflict():
         pickup_date_str = data.get('pickup_date')
         return_date_str = data.get('return_date')
         
+        car = db.session.get(Car, int(car_id)) if car_id else None
+        if not car:
+            return jsonify({'has_conflict': True, 'message': 'Selected car was not found.'}), 404
+
+        if not is_car_bookable(car):
+            availability_label = normalize_car_availability(car.availability)
+            return jsonify({
+                'has_conflict': True,
+                'message': f"{car.name} is currently marked as {availability_label} and cannot be booked."
+            }), 409
+
         # Convert string dates to date objects
         pickup_date = datetime.strptime(pickup_date_str, '%Y-%m-%d').date()
         return_date = datetime.strptime(return_date_str, '%Y-%m-%d').date()
@@ -1044,7 +1125,7 @@ def profile():
     user_email = (current_user.email or '').strip().lower()
     active_threads = build_user_support_threads(current_user.id, user_email, include_archived=False)
     unread_support_replies = [thread for thread in active_threads if thread.get('has_unread_admin_reply')]
-    latest_support_threads = active_threads[:2]
+    latest_support_threads = [thread for thread in active_threads if thread.get('has_any_admin_reply')][:2]
 
     return render_template(
         'profile.html',
@@ -1531,6 +1612,46 @@ def profile_notifications():
     )
 
 
+def get_user_support_thread_by_id(user_id, user_email, thread_id):
+    """Return one support thread dict for user notifications page."""
+    active_threads = build_user_support_threads(user_id, user_email, include_archived=False)
+    archived_threads = build_user_support_threads(user_id, user_email, include_archived=True)
+    all_threads = active_threads + archived_threads
+    return next((thread for thread in all_threads if thread['thread_id'] == thread_id), None)
+
+
+@app.route('/profile/notifications/thread/<int:thread_id>')
+@login_required
+def profile_notification_thread(thread_id):
+    """Detailed thread page for one support conversation in notification center."""
+    status_filter = (request.args.get('status') or 'all').strip().lower()
+    user_email = (current_user.email or '').strip().lower()
+    thread = get_user_support_thread_by_id(current_user.id, user_email, thread_id)
+
+    if not thread:
+        flash('Support thread not found.', 'warning')
+        return redirect(url_for('profile_notifications', status=status_filter))
+
+    unread_rows = [
+        item for item in thread['messages']
+        if bool((item.admin_reply or '').strip()) and not item.user_has_seen_reply
+    ]
+    if unread_rows:
+        for row in unread_rows:
+            row.user_has_seen_reply = True
+        try:
+            db.session.commit()
+            thread['has_unread_admin_reply'] = False
+        except Exception:
+            db.session.rollback()
+
+    return render_template(
+        'profile_notification_thread.html',
+        thread=thread,
+        status_filter=status_filter
+    )
+
+
 @app.route('/profile/notifications/<int:thread_id>/mark-seen')
 @login_required
 def mark_profile_notification_thread_seen(thread_id):
@@ -1711,7 +1832,9 @@ def mark_all_profile_notifications_read():
 def book():
     """Handle car booking form - requires user login."""
     form = BookingForm()
-    cars = Car.query.all()
+    payment_methods = get_payment_method_names()
+    form.payment_method.choices = [(method, method) for method in payment_methods]
+    cars = Car.query.filter(func.lower(Car.availability) == 'available').all()
     initial_step = 1
 
     if request.method == 'GET':
@@ -1744,7 +1867,10 @@ def book():
                         Booking.return_date >= pickup_date
                     )
 
-                    cars = Car.query.filter(~Car.id.in_(booked_car_subquery)).all()
+                    cars = Car.query.filter(
+                        func.lower(Car.availability) == 'available',
+                        ~Car.id.in_(booked_car_subquery)
+                    ).all()
 
                     if cars:
                         flash(f'{len(cars)} car(s) available for your selected dates.', 'success')
@@ -1785,18 +1911,28 @@ def book():
         pickup_area = (form.pickup_area.data or '').strip()
         payment_method_pref = request.form.get('payment_method', '').strip()
 
-        allowed_payment_methods = ['Cash', 'GCash', 'Card']
+        selected_car = db.session.get(Car, car_id)
+        if not selected_car:
+            flash('Selected car does not exist.', 'danger')
+            return render_template('book.html', form=form, cars=cars, today=today, payment_methods=payment_methods)
+
+        if not is_car_bookable(selected_car):
+            availability_label = normalize_car_availability(selected_car.availability)
+            flash(f'{selected_car.name} is currently {availability_label} and cannot be booked.', 'danger')
+            return render_template('book.html', form=form, cars=cars, today=today, payment_methods=payment_methods)
+
+        allowed_payment_methods = set(payment_methods)
         if payment_method_pref and payment_method_pref not in allowed_payment_methods:
             flash('Please select a valid payment preference.', 'danger')
-            return render_template('book.html', form=form, cars=cars, today=today)
+            return render_template('book.html', form=form, cars=cars, today=today, payment_methods=payment_methods)
 
         if pickup_date < today:
             flash('Pick-up date cannot be earlier than today.', 'danger')
-            return render_template('book.html', form=form, cars=cars, today=today)
+            return render_template('book.html', form=form, cars=cars, today=today, payment_methods=payment_methods)
 
         if return_date < pickup_date:
             flash('Return date must be after the pick-up date.', 'danger')
-            return render_template('book.html', form=form, cars=cars, today=today)
+            return render_template('book.html', form=form, cars=cars, today=today, payment_methods=payment_methods)
         
         # Get all approved/returned/completed bookings for this car
         conflicting_bookings = Booking.query.filter(
@@ -1808,7 +1944,7 @@ def book():
         
         if conflicting_bookings:
             flash('The selected dates conflict with an existing booking. Please choose different dates.', 'danger')
-            return render_template('book.html', form=form, cars=cars, today=today)
+            return render_template('book.html', form=form, cars=cars, today=today, payment_methods=payment_methods)
         
         # Handle file uploads for ID and license
         id_filename = None
@@ -1854,7 +1990,7 @@ def book():
         flash('Your booking has been submitted successfully! Please wait for admin approval.', 'success')
         return redirect(url_for('my_bookings'))
     
-    return render_template('book.html', form=form, cars=cars, today=today, initial_step=initial_step)
+    return render_template('book.html', form=form, cars=cars, today=today, initial_step=initial_step, payment_methods=payment_methods)
 
 @app.route('/confirmation/<int:booking_id>')
 @login_required
@@ -1910,7 +2046,8 @@ def confirmation(booking_id):
     booking.pickup_area_display = pickup_area_display
     booking.notes_display = notes_display
     
-    return render_template('confirmation.html', booking=booking, car=car, total_display=total_display, total_amount=total)
+    payment_methods = get_payment_method_names()
+    return render_template('confirmation.html', booking=booking, car=car, total_display=total_display, total_amount=total, payment_methods=payment_methods)
 
 @app.route('/confirmation/<int:booking_id>/payment', methods=['POST'])
 @login_required
@@ -1928,9 +2065,10 @@ def confirmation_payment(booking_id):
         flash('Payment can only be made for approved bookings.', 'warning')
         return redirect(url_for('my_bookings'))
     
-    payment_method = request.form.get('payment_method')
+    payment_method = (request.form.get('payment_method') or '').strip()
+    allowed_payment_methods = set(get_payment_method_names())
     
-    if payment_method:
+    if payment_method and payment_method in allowed_payment_methods:
         booking.payment_method = payment_method
         # For Cash payment, mark as Unpaid since payment is at pickup
         # For online payment (GCash/Card), keep as Unpaid until they complete the payment form
@@ -1938,6 +2076,8 @@ def confirmation_payment(booking_id):
             booking.payment_status = 'Unpaid'  # Will pay upon pickup
         db.session.commit()
         flash('Payment method selected successfully!', 'success')
+    elif payment_method:
+        flash('Please select a valid payment method.', 'danger')
     
     return redirect(url_for('confirmation', booking_id=booking_id))
 
@@ -1957,7 +2097,9 @@ def process_payment(booking_id):
     
     try:
         data = request.get_json()
-        payment_method = data.get('payment_method')
+        payment_method = (data.get('payment_method') or '').strip()
+        if payment_method not in set(get_payment_method_names()):
+            return jsonify({'success': False, 'message': 'Invalid payment method selected'}), 400
         
         # Here you would integrate with actual payment gateway
         # For now, we'll simulate successful payment
@@ -1986,9 +2128,49 @@ def process_payment(booking_id):
 @app.route('/my-bookings')
 @login_required
 def my_bookings():
-    """Display user's booking history organized by status."""
+    """Display user's bookings with status and archive filters."""
     try:
-        all_bookings = Booking.query.filter_by(user_id=current_user.id).order_by(Booking.submitted_at.desc()).all()
+        status_filter = (request.args.get('status') or 'all').strip().lower()
+        view_filter = (request.args.get('view') or 'active').strip().lower()
+        if view_filter not in {'active', 'archived'}:
+            view_filter = 'active'
+
+        status_value_map = {
+            'pending': 'Pending',
+            'approved': 'Approved',
+            'rejected': 'Rejected',
+            'completed': 'Completed'
+        }
+
+        base_query = Booking.query.filter(Booking.user_id == current_user.id)
+
+        if view_filter == 'archived':
+            base_query = base_query.filter(Booking.is_user_archived.is_(True))
+        else:
+            base_query = base_query.filter(Booking.is_user_archived.is_(False))
+
+        active_count_query = Booking.query.filter(
+            Booking.user_id == current_user.id,
+            Booking.is_user_archived.is_(False)
+        )
+
+        status_counts = {
+            'pending': active_count_query.filter(Booking.status == 'Pending').count(),
+            'approved': active_count_query.filter(Booking.status == 'Approved').count(),
+            'rejected': active_count_query.filter(Booking.status == 'Rejected').count(),
+            'completed': active_count_query.filter(Booking.status == 'Completed').count(),
+            'all': active_count_query.count(),
+            'archived': Booking.query.filter(
+                Booking.user_id == current_user.id,
+                Booking.is_user_archived.is_(True)
+            ).count()
+        }
+
+        if status_filter in status_value_map:
+            all_bookings = base_query.filter(Booking.status == status_value_map[status_filter]).order_by(Booking.submitted_at.desc()).all()
+        else:
+            status_filter = 'all'
+            all_bookings = base_query.order_by(Booking.submitted_at.desc()).all()
 
         for booking in all_bookings:
             try:
@@ -2005,26 +2187,15 @@ def my_bookings():
             pickup_area_display, notes_display = get_booking_display_pickup_area_and_notes(booking)
             booking.pickup_area_display = pickup_area_display
             booking.notes_display = notes_display
-        
-        # Organize bookings by status
-        bookings_by_status = {
-            'Pending': [],
-            'Approved': [],
-            'Rejected': [],
-            'Returned': [],
-            'Completed': []
-        }
-        
-        for booking in all_bookings:
-            status = booking.status
-            if status in bookings_by_status:
-                bookings_by_status[status].append(booking)
-            else:
-                if 'Other' not in bookings_by_status:
-                    bookings_by_status['Other'] = []
-                bookings_by_status['Other'].append(booking)
-        
-        return render_template('my_bookings.html', bookings_by_status=bookings_by_status, total_bookings=len(all_bookings))
+
+        return render_template(
+            'my_bookings.html',
+            bookings=all_bookings,
+            total_bookings=len(all_bookings),
+            status_filter=status_filter,
+            view_filter=view_filter,
+            status_counts=status_counts
+        )
     
     except Exception:
         flash('An error occurred while loading your bookings.', 'danger')
@@ -2040,6 +2211,10 @@ def edit_booking(booking_id):
     if booking.user_id != current_user.id:
         flash('Access denied.', 'danger')
         return redirect(url_for('my_bookings'))
+
+    if booking.is_user_archived:
+        flash('This booking is archived. Unarchive it first if you want to edit.', 'warning')
+        return redirect(url_for('my_bookings', view='archived'))
     
     # Only pending or approved bookings can be edited
     if booking.status not in ['Pending', 'Approved']:
@@ -2079,6 +2254,10 @@ def delete_booking(booking_id):
         if booking.user_id != current_user.id:
             flash('Access denied. You can only delete your own bookings.', 'danger')
             return redirect(url_for('my_bookings'))
+
+        if booking.is_user_archived:
+            flash('Archived bookings cannot be deleted. Unarchive first if needed.', 'warning')
+            return redirect(url_for('my_bookings', view='archived'))
         
         # Check if booking can be deleted (only pending or approved)
         if booking.status not in ['Pending', 'Approved']:
@@ -2095,6 +2274,37 @@ def delete_booking(booking_id):
         print(f"Error deleting booking: {str(e)}")
     
     return redirect(url_for('my_bookings'))
+
+
+@app.route('/bookings/<int:booking_id>/archive', methods=['POST'])
+@login_required
+def archive_booking(booking_id):
+    """Archive or unarchive a user's booking."""
+    booking = Booking.query.get_or_404(booking_id)
+
+    if booking.user_id != current_user.id:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('my_bookings'))
+
+    action = (request.form.get('action') or 'archive').strip().lower()
+
+    try:
+        if action == 'unarchive':
+            booking.is_user_archived = False
+            booking.user_archived_at = None
+            db.session.commit()
+            flash('Booking moved back to active list.', 'success')
+            return redirect(url_for('my_bookings'))
+
+        booking.is_user_archived = True
+        booking.user_archived_at = utcnow_naive()
+        db.session.commit()
+        flash('Booking archived successfully.', 'success')
+        return redirect(url_for('my_bookings'))
+    except Exception:
+        db.session.rollback()
+        flash('Could not update booking archive state. Please try again.', 'danger')
+        return redirect(url_for('my_bookings'))
 
 # Review Routes
 @app.route('/review/<int:booking_id>', methods=['GET', 'POST'])
@@ -2127,7 +2337,8 @@ def review(booking_id):
             car_id=booking.car_id,
             booking_id=booking_id,
             rating=form.rating.data,
-            comment=form.comment.data if form.comment.data else None
+            comment=form.comment.data if form.comment.data else None,
+            is_anonymous=bool(form.is_anonymous.data)
         )
         
         db.session.add(review_obj)
@@ -2146,7 +2357,7 @@ def review(booking_id):
 def admin_dashboard():
     """Admin dashboard with statistics."""
     total_cars = Car.query.count()
-    available_cars = Car.query.filter_by(availability='Available').count()
+    available_cars = Car.query.filter(func.lower(Car.availability) == 'available').count()
     total_bookings = Booking.query.count()
     total_users = User.query.filter_by(is_admin=False).count()
     active_rentals = Booking.query.filter(Booking.status.in_(['Approved', 'Returned'])).count()
@@ -2310,6 +2521,24 @@ def admin_cars():
     
     return render_template('admin_cars.html', cars=cars)
 
+
+@app.route('/admin/cars/<int:car_id>/availability', methods=['POST'])
+@admin_required
+def admin_update_car_availability(car_id):
+    """Admin updates car availability directly from vehicle list."""
+    car = Car.query.get_or_404(car_id)
+    requested_availability = normalize_car_availability(request.form.get('availability'))
+    allowed_values = {'Available', 'Rented', 'Maintenance'}
+
+    if requested_availability not in allowed_values:
+        flash('Invalid availability status selected.', 'danger')
+        return redirect(url_for('admin_cars'))
+
+    car.availability = requested_availability
+    db.session.commit()
+    flash(f"{car.name} status updated to {requested_availability}.", 'success')
+    return redirect(url_for('admin_cars'))
+
 @app.route('/admin/cars/add', methods=['GET', 'POST'])
 @admin_required
 def admin_add_car():
@@ -2412,11 +2641,9 @@ def admin_delete_car(car_id):
 @app.route('/admin/users')
 @admin_required
 def admin_users():
-    """Admin view all users."""
-    users = User.query.filter_by(is_admin=False).all()
-    admins = User.query.filter_by(is_admin=True).all()
-    all_users = User.query.order_by(User.created_at.desc()).all()
-    return render_template('admin_users.html', users=users, admins=admins, all_users=all_users)
+    """Admin view customer directory (customers only)."""
+    customer_users = User.query.filter_by(is_admin=False).order_by(User.created_at.desc()).all()
+    return render_template('admin_users.html', customer_users=customer_users)
 
 @app.route('/admin/users/add', methods=['GET', 'POST'])
 @admin_required
@@ -2528,6 +2755,45 @@ def admin_support():
         active_replied_count=active_replied_count,
         active_unread_count=active_unread_count,
         archived_count=archived_count
+    )
+
+
+def get_admin_support_thread_by_id(thread_id):
+    """Return one support thread dict for admin support pages."""
+    active_threads = build_admin_support_threads(include_archived=False)
+    archived_threads = build_admin_support_threads(include_archived=True)
+    all_threads = active_threads + archived_threads
+    return next((thread for thread in all_threads if thread['thread_id'] == thread_id), None)
+
+
+@app.route('/admin/support/thread/<int:thread_id>')
+@admin_required
+def admin_support_thread(thread_id):
+    """Detailed conversation page for one admin support thread."""
+    status_filter = (request.args.get('status') or 'all').strip().lower()
+    thread = get_admin_support_thread_by_id(thread_id)
+
+    if not thread:
+        flash('Support thread not found.', 'warning')
+        return redirect(url_for('admin_support', status=status_filter))
+
+    unread_messages = [
+        item for item in thread['messages']
+        if not (item.admin_reply or '').strip() and not item.admin_has_seen_message
+    ]
+    if unread_messages:
+        for message in unread_messages:
+            message.admin_has_seen_message = True
+        try:
+            db.session.commit()
+            thread['has_unread_customer_message'] = False
+        except Exception:
+            db.session.rollback()
+
+    return render_template(
+        'admin_support_thread.html',
+        thread=thread,
+        status_filter=status_filter
     )
 
 
@@ -2821,7 +3087,14 @@ def build_admin_support_threads(include_archived=False):
         has_any_admin_reply = any(bool((item.admin_reply or '').strip()) for item in ordered_messages)
         has_pending = bool(pending_target)
         has_unread_customer_message = bool(unread_customer_items)
-        last_activity_at = latest_message.admin_replied_at if (latest_message.admin_reply or '').strip() else latest_message.created_at
+        latest_has_admin_reply = bool((latest_message.admin_reply or '').strip())
+        last_activity_at = latest_message.admin_replied_at if latest_has_admin_reply else latest_message.created_at
+        if latest_has_admin_reply:
+            last_reply_actor = 'Admin'
+            last_reply_preview = (latest_message.admin_reply or '').strip()
+        else:
+            last_reply_actor = 'Customer'
+            last_reply_preview = (latest_message.message or '').strip()
 
         threads.append({
             'thread_id': root_id,
@@ -2833,6 +3106,8 @@ def build_admin_support_threads(include_archived=False):
             'has_pending': has_pending,
             'has_unread_customer_message': has_unread_customer_message,
             'has_any_admin_reply': has_any_admin_reply,
+            'last_reply_actor': last_reply_actor,
+            'last_reply_preview': last_reply_preview,
             'last_activity_at': last_activity_at or latest_message.created_at
         })
 

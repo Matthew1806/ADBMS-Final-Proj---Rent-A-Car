@@ -89,9 +89,9 @@
                     <p><strong>Payment Method</strong></p>
                     <select id="payment-method-select" class="payment-method-select" title="Payment Method">
                         <option value="">Select Payment Method</option>
-                        <option value="GCash" {% if booking.payment_method == 'GCash' %}selected{% endif %}>GCash</option>
-                        <option value="Cash" {% if booking.payment_method == 'Cash' %}selected{% endif %}>Cash</option>
-                        <option value="Card" {% if booking.payment_method == 'Card' %}selected{% endif %}>Card</option>
+                        {% for method in payment_methods %}
+                        <option value="{{ method }}" {% if booking.payment_method == method %}selected{% endif %}>{{ method }}</option>
+                        {% endfor %}
                     </select>
                     <p class="receipt-policy">Online payment is available for approved bookings. Cash is paid on pickup.</p>
                 </div>
@@ -214,6 +214,10 @@
             }
             if (paymentMethod === 'Cash') {
                 alert('Cash payment will be collected upon pickup. No online payment needed.');
+                return;
+            }
+            if (paymentMethod !== 'GCash' && paymentMethod !== 'Card') {
+                alert('This payment method is saved. Online payment form is currently available for GCash and Card only.');
                 return;
             }
             selectedMethodSpan.textContent = paymentMethod;
